@@ -23,9 +23,7 @@ export function AppSidebar() {
       )}
     >
       <div className="flex h-16 items-center gap-3 px-5">
-        <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg text-sm font-semibold">
-          S
-        </div>
+        <img src="/strata-mark.svg" alt="Strata React" className="size-9 shrink-0 rounded-lg" />
         {!collapsed && (
           <div>
             <div className="text-sm font-semibold tracking-tight">Strata React</div>

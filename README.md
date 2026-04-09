@@ -1,4 +1,8 @@
-﻿# Strata React
+﻿<p align="center">
+  <img src="./public/strata-logo.svg" alt="Strata React" width="320" />
+</p>
+
+# Strata React
 
 > Layered, structured, business-ready React starter.
 
