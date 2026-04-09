@@ -65,5 +65,16 @@ export default tseslint.config(
         }
       ]
     }
+  },
+  {
+    files: ["src/widgets/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["@/app/*", "@/pages/*"]
+        }
+      ]
+    }
   }
 );

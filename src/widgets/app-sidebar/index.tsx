@@ -2,9 +2,9 @@ import { LayoutDashboard, Settings2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 
-import { useUiStore } from "@/app/store";
 import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 import { cn } from "@/shared/lib/utils";
+import { useUiStore } from "@/shared/store";
 
 const navItems = [
   { to: ROUTE_PATHS.dashboard, icon: LayoutDashboard, key: "common.dashboard" },

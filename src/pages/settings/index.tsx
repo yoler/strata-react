@@ -49,3 +49,5 @@ export function SettingsPage() {
   );
 }
 
+export default SettingsPage;
+

@@ -1,13 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Navigate } from "react-router-dom";
 
 import { loginSchema, type LoginFormValues } from "@/modules/auth/schema";
-import { useAuthStore } from "@/modules/auth/store";
 import { useLoginMutation } from "@/modules/auth/use-auth";
 import { ENV } from "@/shared/config/env";
-import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
@@ -16,7 +13,6 @@ import { Label } from "@/shared/ui/label";
 export function LoginPage() {
   const { t } = useTranslation();
   const loginMutation = useLoginMutation();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -25,10 +21,6 @@ export function LoginPage() {
       password: "123456"
     }
   });
-
-  if (isAuthenticated) {
-    return <Navigate to={ROUTE_PATHS.dashboard} replace />;
-  }
 
   const onSubmit = form.handleSubmit(async (values) => {
     await loginMutation.mutateAsync(values);
@@ -64,4 +56,6 @@ export function LoginPage() {
     </Card>
   );
 }
+
+export default LoginPage;
 

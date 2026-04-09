@@ -18,8 +18,12 @@
   password: "密码",
   submit: "提交",
   loading: "加载中...",
+  routeLoadingDescription: "正在准备路由并加载页面资源。",
   demoHint: "当前启用了 Demo 登录，任意用户名和不少于 6 位密码均可登录。",
   notFound: "页面不存在",
+  reloadPage: "重新加载",
+  routeErrorDescription: "当前路由渲染时发生了错误。你可以重新加载页面，或返回仪表盘。",
+  routeErrorTitle: "路由异常",
   backToDashboard: "返回仪表盘"
 };
 

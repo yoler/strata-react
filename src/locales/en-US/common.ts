@@ -18,8 +18,12 @@
   password: "Password",
   submit: "Submit",
   loading: "Loading...",
+  routeLoadingDescription: "Preparing the route and loading page resources.",
   demoHint: "Demo auth is enabled. Any username and a password with 6+ characters will work.",
   notFound: "Page not found",
+  reloadPage: "Reload page",
+  routeErrorDescription: "Something went wrong while rendering this route. You can reload the page or return to the dashboard.",
+  routeErrorTitle: "Route error",
   backToDashboard: "Back to dashboard"
 };
 

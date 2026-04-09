@@ -1,8 +1,8 @@
 import { Menu, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { useUiStore } from "@/app/store";
 import { useAuthStore } from "@/modules/auth/store";
+import { useUiStore } from "@/shared/store";
 import { Button } from "@/shared/ui/button";
 import { LanguageSwitcher } from "@/widgets/language-switcher";
 import { ThemeToggle } from "@/widgets/theme-toggle";

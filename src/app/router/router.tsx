@@ -2,26 +2,36 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AppLayout } from "@/app/layouts/app-layout";
 import { AuthLayout } from "@/app/layouts/auth-layout";
-import { DashboardPage } from "@/pages/dashboard";
-import { LoginPage } from "@/pages/login";
-import { NotFoundPage } from "@/pages/not-found";
-import { SettingsPage } from "@/pages/settings";
 import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 
-import { ProtectedRoute } from "./guards";
+import { GuestRoute, ProtectedRoute } from "./guards";
+import { RouteErrorBoundary } from "./route-error-boundary";
+import {
+  DashboardRoutePage,
+  LoginRoutePage,
+  NotFoundRoutePage,
+  SettingsRoutePage
+} from "./route-pages";
 
 export const router = createBrowserRouter([
   {
-    element: <AuthLayout />,
+    element: <GuestRoute />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
-        path: ROUTE_PATHS.login,
-        element: <LoginPage />
+        element: <AuthLayout />,
+        children: [
+          {
+            path: ROUTE_PATHS.login,
+            element: <LoginRoutePage />
+          }
+        ]
       }
     ]
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         element: <AppLayout />,
@@ -32,11 +42,11 @@ export const router = createBrowserRouter([
           },
           {
             path: ROUTE_PATHS.dashboard,
-            element: <DashboardPage />
+            element: <DashboardRoutePage />
           },
           {
             path: ROUTE_PATHS.settings,
-            element: <SettingsPage />
+            element: <SettingsRoutePage />
           }
         ]
       }
@@ -44,7 +54,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <NotFoundPage />
+    element: <NotFoundRoutePage />
   }
 ]);
 
