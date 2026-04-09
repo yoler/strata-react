@@ -11,7 +11,7 @@
 
 ## 本次调整
 
-1. 将 token 注入、语言头注入、401 登出处理从 `shared/api` 提升到 `app/api/setup.ts`
+1. 将 token 注入、语言头注入、401 登出处理从 `shared/api` 提升到 `app/api/interceptors.ts`
 2. 保留 `shared/api` 作为纯基础设施层
 3. 为 dashboard 和 sidebar 补齐剩余 i18n 文案
 4. 在 ESLint 中加入最小可执行的分层守卫

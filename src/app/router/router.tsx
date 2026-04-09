@@ -5,13 +5,13 @@ import { AuthLayout } from "@/app/layouts/auth-layout";
 import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 
 import { GuestRoute, ProtectedRoute } from "./guards";
-import { RouteErrorBoundary } from "./route-error-boundary";
 import {
   DashboardRoutePage,
   LoginRoutePage,
   NotFoundRoutePage,
   SettingsRoutePage
-} from "./route-pages";
+} from "./lazy-routes";
+import { RouteErrorBoundary } from "./route-error-boundary";
 
 export const router = createBrowserRouter([
   {

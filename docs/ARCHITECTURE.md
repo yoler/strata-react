@@ -152,7 +152,7 @@
 - `shared/store` 放跨页面、跨壳层共享但不属于具体业务模块的客户端状态
 - `shared/api` 负责 axios 实例、请求客户端、错误归一化、请求取消和上传下载支持
 - `shared/api` 只提供纯基础设施，不直接读取 `app` 或 `modules` 的运行时状态
-- 认证 token、语言信息、401 登出策略等应用运行时依赖，由 `src/app/api/setup.ts` 在应用层注入
+- 认证 token、语言信息、401 登出策略等应用运行时依赖，由 `src/app/api/interceptors.ts` 在应用层注入
 - `shared/types` 只放跨模块复用的通用类型和基础协议类型
 
 ### `harness/memory`
@@ -407,7 +407,7 @@ src/shared/types/
 5. 业务组件统一放在 `src/modules/*/components`
 6. 平台型配置优先由宿主库管理，`locale` 由 `i18n + storage` 管理，`theme` 由 `next-themes` 管理
 7. API 请求统一通过 `shared/api/request.ts` 暴露，请求拦截、重复请求取消、错误归一化与上传下载能力放在基础设施层处理
-8. `shared/api` 不直接依赖 `app` 和 `modules`；token 注入、语言头注入、401 未授权处理由 `app/api/setup.ts` 注入
+8. `shared/api` 不直接依赖 `app` 和 `modules`；token 注入、语言头注入、401 未授权处理由 `app/api/interceptors.ts` 注入
 9. ESLint 使用 `no-restricted-imports` 对核心分层边界做自动校验，违反规则时直接报错
 10. 模块目录默认先保持扁平；在 `modules/auth` 这类明确业务目录中，优先使用 `api.ts / store.ts / types.ts / schema.ts / use-xxx.ts`
 11. 类型遵循分层放置：业务类型跟业务走，通用类型进 `shared/types`，页面临时类型就近放

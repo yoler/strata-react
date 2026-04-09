@@ -1,4 +1,4 @@
-import "@/app/api/setup";
+import "@/app/api/interceptors";
 import { RouterProvider } from "react-router-dom";
 
 import "@/app/i18n";
