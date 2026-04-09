@@ -38,7 +38,7 @@ export function DashboardPage() {
                 </div>
                 <div className="space-y-1">
                   <CardTitle className="text-base">{title}</CardTitle>
-                  <CardDescription>Ready out of the box</CardDescription>
+                  <CardDescription>{t("dashboard.readyDescription")}</CardDescription>
                 </div>
               </CardHeader>
             </Card>
@@ -48,8 +48,8 @@ export function DashboardPage() {
 
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>{t("common.quickStart")}</CardTitle>
-          <CardDescription>You can start building product features immediately from modules, pages and widgets.</CardDescription>
+          <CardTitle>{t("dashboard.starterTitle")}</CardTitle>
+          <CardDescription>{t("dashboard.starterDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button asChild>

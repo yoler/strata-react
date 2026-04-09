@@ -1,3 +1,4 @@
+import "@/app/api/setup";
 import { RouterProvider } from "react-router-dom";
 
 import "@/app/i18n";

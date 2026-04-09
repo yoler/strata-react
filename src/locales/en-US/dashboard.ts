@@ -6,7 +6,11 @@
     state: "Zustand + Query",
     i18n: "Internationalization",
     theme: "Light / Dark"
-  }
+  },
+  readyDescription: "Ready out of the box",
+  starterTitle: "Quick start",
+  starterDescription:
+    "You can start building product features immediately from modules, pages and widgets."
 };
 
 export default dashboard;

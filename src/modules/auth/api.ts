@@ -1,5 +1,5 @@
-import { ENV } from "@/app/config/env";
 import { request } from "@/shared/api/request";
+import { ENV } from "@/shared/config/env";
 
 import type { LoginPayload, LoginResponse } from "./types";
 

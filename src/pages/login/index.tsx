@@ -3,10 +3,10 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 
-import { ENV } from "@/app/config/env";
 import { loginSchema, type LoginFormValues } from "@/modules/auth/schema";
 import { useAuthStore } from "@/modules/auth/store";
 import { useLoginMutation } from "@/modules/auth/use-auth";
+import { ENV } from "@/shared/config/env";
 import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -57,7 +57,7 @@ export function LoginPage() {
           {ENV.enableDemoAuth && <p className="text-muted-foreground text-sm">{t("common.demoHint")}</p>}
 
           <Button className="w-full" disabled={loginMutation.isPending} type="submit">
-            {loginMutation.isPending ? "Loading..." : t("common.login")}
+            {loginMutation.isPending ? t("common.loading") : t("common.login")}
           </Button>
         </form>
       </CardContent>

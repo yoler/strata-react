@@ -1,8 +1,10 @@
 ﻿const common = {
-  appName: "Frontend Template",
+  appName: "Strata React",
   dashboard: "Dashboard",
   settings: "Settings",
   logout: "Sign out",
+  workspace: "Workspace",
+  quickCreate: "Quick Create",
   language: "Language",
   theme: "Theme",
   light: "Light",
@@ -15,6 +17,7 @@
   username: "Username",
   password: "Password",
   submit: "Submit",
+  loading: "Loading...",
   demoHint: "Demo auth is enabled. Any username and a password with 6+ characters will work.",
   notFound: "Page not found",
   backToDashboard: "Back to dashboard"

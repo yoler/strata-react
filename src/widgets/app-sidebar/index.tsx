@@ -35,11 +35,11 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="mb-4">
             <button className="bg-primary text-primary-foreground flex h-9 w-full items-center rounded-md px-3 text-sm font-medium">
-              Quick Create
+              {t("common.quickCreate")}
             </button>
           </div>
         )}
-        {!collapsed && <div className="text-muted-foreground mb-2 px-2 text-xs">Workspace</div>}
+        {!collapsed && <div className="text-muted-foreground mb-2 px-2 text-xs">{t("common.workspace")}</div>}
         <nav className="space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;

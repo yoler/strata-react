@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 type ApiErrorOptions = {
   code?: string;
@@ -89,4 +89,3 @@ export function normalizeApiError(error: unknown) {
 
   return new ApiError("发生未知请求错误");
 }
-

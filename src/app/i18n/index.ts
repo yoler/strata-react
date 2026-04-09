@@ -1,7 +1,7 @@
 ﻿import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-import { ENV } from "@/app/config/env";
+import { ENV } from "@/shared/config/env";
 import { STORAGE_KEYS } from "@/shared/constants/storage-keys";
 import { storage } from "@/shared/lib/storage";
 

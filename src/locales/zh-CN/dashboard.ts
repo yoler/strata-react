@@ -6,7 +6,10 @@
     state: "Zustand + Query",
     i18n: "多语言",
     theme: "亮暗主题"
-  }
+  },
+  readyDescription: "开箱即用",
+  starterTitle: "快速开始",
+  starterDescription: "你可以基于 modules、pages 和 widgets 直接开始构建业务功能。"
 };
 
 export default dashboard;

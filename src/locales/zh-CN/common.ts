@@ -1,8 +1,10 @@
 ﻿const common = {
-  appName: "前端模板",
+  appName: "Strata React",
   dashboard: "仪表盘",
   settings: "设置",
   logout: "退出登录",
+  workspace: "工作区",
+  quickCreate: "快速创建",
   language: "语言",
   theme: "主题",
   light: "浅色",
@@ -15,6 +17,7 @@
   username: "用户名",
   password: "密码",
   submit: "提交",
+  loading: "加载中...",
   demoHint: "当前启用了 Demo 登录，任意用户名和不少于 6 位密码均可登录。",
   notFound: "页面不存在",
   backToDashboard: "返回仪表盘"

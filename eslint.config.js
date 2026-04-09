@@ -32,5 +32,38 @@ export default tseslint.config(
         }
       ]
     }
+  },
+  {
+    files: ["src/shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["@/app/*", "@/modules/*", "@/pages/*", "@/widgets/*"]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/modules/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["@/app/*", "@/pages/*", "@/widgets/*"]
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/pages/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: ["@/app/*"]
+        }
+      ]
+    }
   }
 );

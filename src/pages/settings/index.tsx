@@ -1,7 +1,7 @@
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 
-import { ENV } from "@/app/config/env";
+import { ENV } from "@/shared/config/env";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 
 export function SettingsPage() {

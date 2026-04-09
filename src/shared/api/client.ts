@@ -4,12 +4,10 @@ import axios, {
   type InternalAxiosRequestConfig
 } from "axios";
 
-import { ENV } from "@/app/config/env";
-import { useAuthStore } from "@/modules/auth/store";
+import { ENV } from "@/shared/config/env";
 
+import { requestCanceler } from "./canceler";
 import { normalizeApiError } from "./error";
-import { requestCanceler } from "./helpers/canceler";
-import { injectClientInfo, injectToken } from "./helpers/interceptors";
 
 export interface CustomAxiosRequestConfig<TData = unknown> extends AxiosRequestConfig<TData> {
   skipAuth?: boolean;
@@ -30,12 +28,6 @@ http.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const customConfig = config as CustomAxiosRequestConfig & InternalAxiosRequestConfig;
 
-    injectClientInfo(config);
-
-    if (!customConfig.skipAuth) {
-      injectToken(config);
-    }
-
     if (!customConfig.skipCancel && !config.signal) {
       requestCanceler.addPending(config);
     }
@@ -52,11 +44,6 @@ http.interceptors.response.use(
   },
   (error: AxiosError) => {
     requestCanceler.removePending(error.config);
-
-    if (error.response?.status === 401) {
-      requestCanceler.clearPending();
-      useAuthStore.getState().logout();
-    }
 
     return Promise.reject(normalizeApiError(error));
   }
