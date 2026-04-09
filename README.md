@@ -1,4 +1,6 @@
-﻿# React Frontend Template
+﻿# Strata React
+
+> Layered, structured, business-ready React starter.
 
 一个面向中型业务项目的 React 前端架构模板，重点不是堆 UI，而是提供一套可以直接继续开发业务代码的工程骨架。
 
