@@ -5,7 +5,7 @@ import { ENV } from "@/shared/config/env";
 import { STORAGE_KEYS } from "@/shared/constants/storage-keys";
 import { storage } from "@/shared/lib/storage";
 
-const localeModules = import.meta.glob("../../locales/*/*.ts", { eager: true }) as Record<
+const localeModules = import.meta.glob("../../locales/*/*.json", { eager: true }) as Record<
   string,
   { default: Record<string, unknown> }
 >;
@@ -14,7 +14,7 @@ function buildResources() {
   const resources: Record<string, { translation: Record<string, unknown> }> = {};
 
   for (const [filePath, module] of Object.entries(localeModules)) {
-    const match = filePath.match(/locales\/([^/]+)\/([^/]+)\.ts$/);
+    const match = filePath.match(/locales\/([^/]+)\/([^/]+)\.json$/);
     if (!match) continue;
 
     const [, locale, namespace] = match;

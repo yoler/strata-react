@@ -145,7 +145,7 @@ modules/auth/
 ├─ schema.ts
 ├─ store.ts
 ├─ types.ts
-├─ use-auth.ts
+├─ use-auth.json
 └─ index.ts
 ```
 
@@ -175,18 +175,18 @@ modules/auth/
 ```text
 src/locales/
 ├─ zh-CN/
-│  ├─ common.ts
-│  ├─ auth.ts
-│  ├─ dashboard.ts
-│  └─ settings.ts
+│  ├─ common.json
+│  ├─ auth.json
+│  ├─ dashboard.json
+│  └─ settings.json
 └─ en-US/
-   ├─ common.ts
-   ├─ auth.ts
-   ├─ dashboard.ts
-   └─ settings.ts
+   ├─ common.json
+   ├─ auth.json
+   ├─ dashboard.json
+   └─ settings.json
 ```
 
-`src/app/i18n/index.ts` 会自动聚合 `src/locales/<locale>/<module>.ts`，新增语言文件时不需要再手动维护 resources。
+`src/app/i18n/index.ts` 会自动聚合 `src/locales/<locale>/<module>.json`，新增语言文件时不需要再手动维护 resources。
 
 ## 状态管理策略
 
@@ -255,3 +255,4 @@ npm run validate
 2. 增加表格页、详情页、表单页的通用页面模式
 3. 补充测试基础设施
 4. 补充 License、GitHub Actions、Issue / PR 模板
+

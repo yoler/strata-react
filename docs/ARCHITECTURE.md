@@ -59,16 +59,16 @@
 
 适合放：
 
-- `src/locales/zh-CN/common.ts`
-- `src/locales/zh-CN/dashboard.ts`
-- `src/locales/en-US/common.ts`
-- `src/locales/en-US/dashboard.ts`
+- `src/locales/zh-CN/common.json`
+- `src/locales/zh-CN/dashboard.json`
+- `src/locales/en-US/common.json`
+- `src/locales/en-US/dashboard.json`
 
 原则：
 
 - 只放翻译资源内容
 - 不放 i18n 初始化逻辑
-- 按 `src/locales/<locale>/<module>.ts` 组织
+- 按 `src/locales/<locale>/<module>.json` 组织
 - 由 `src/app/i18n/index.ts` 自动聚合，不手动维护 resources 列表
 
 ### `src/modules`
@@ -344,7 +344,7 @@ src/modules/project/types.ts
 
 ```text
 src/shared/types/
-├─ common.ts
+├─ common.json
 ├─ api.ts
 └─ index.ts
 ```
@@ -402,7 +402,7 @@ src/shared/types/
 
 1. `src/main.tsx` 保留为薄入口，只负责挂载 `src/app/app.tsx`
 2. i18n 初始化放在 `src/app/i18n`，语言资源放在 `src/locales`
-3. 多语言资源按 `src/locales/<locale>/<module>.ts` 组织，并由 `i18n` 自动聚合
+3. 多语言资源按 `src/locales/<locale>/<module>.json` 组织，并由 `i18n` 自动聚合
 4. 全局通用 UI 组件统一放在 `src/shared/ui`
 5. 业务组件统一放在 `src/modules/*/components`
 6. 平台型配置优先由宿主库管理，`locale` 由 `i18n + storage` 管理，`theme` 由 `next-themes` 管理
@@ -413,3 +413,4 @@ src/shared/types/
 11. 类型遵循分层放置：业务类型跟业务走，通用类型进 `shared/types`，页面临时类型就近放
 12. 页面入口默认支持路由懒加载，统一通过 router 层的 loading fallback 接入
 13. 跨页面壳层 UI 状态放 `shared/store`，避免 `widgets -> app` 的反向依赖
+

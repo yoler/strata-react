@@ -1,6 +1,0 @@
-﻿const auth = {
-  title: "登录你的工作台",
-  description: "模板已内置 React Router、TanStack Query、Zustand、i18n、主题系统和 shadcn/ui 基础组件。"
-};
-
-export default auth;

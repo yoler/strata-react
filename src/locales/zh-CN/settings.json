@@ -1,0 +1,8 @@
+﻿{
+  "title": "全局设置",
+  "description": "你可以在这里验证主题、语言和基础环境配置是否生效。",
+  "currentLanguage": "当前语言",
+  "currentTheme": "当前主题",
+  "apiBaseUrl": "API 地址",
+  "demoAuth": "Demo 登录"
+}
