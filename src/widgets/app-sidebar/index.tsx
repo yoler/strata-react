@@ -1,4 +1,4 @@
-import { LayoutDashboard, Settings2 } from "lucide-react";
+import { LayoutDashboard, Settings2, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
 
@@ -8,6 +8,7 @@ import { useUiStore } from "@/shared/store";
 
 const navItems = [
   { to: ROUTE_PATHS.dashboard, icon: LayoutDashboard, key: "common.dashboard" },
+  { to: ROUTE_PATHS.editor, icon: FileText, key: "Editor Demo" },
   { to: ROUTE_PATHS.settings, icon: Settings2, key: "common.settings" }
 ] as const;
 

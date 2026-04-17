@@ -6,6 +6,7 @@ const DashboardPage = lazy(() => import("@/pages/dashboard"));
 const LoginPage = lazy(() => import("@/pages/login"));
 const NotFoundPage = lazy(() => import("@/pages/not-found"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
+const EditorPage = lazy(() => import("@/pages/editor"));
 
 function withRouteSuspense(node: ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{node}</Suspense>;
@@ -13,6 +14,10 @@ function withRouteSuspense(node: ReactNode) {
 
 export function DashboardRoutePage() {
   return withRouteSuspense(<DashboardPage />);
+}
+
+export function EditorRoutePage() {
+  return withRouteSuspense(<EditorPage />);
 }
 
 export function LoginRoutePage() {

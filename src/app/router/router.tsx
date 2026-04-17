@@ -7,6 +7,7 @@ import { ROUTE_PATHS } from "@/shared/constants/route-paths";
 import { GuestRoute, ProtectedRoute } from "./guards";
 import {
   DashboardRoutePage,
+  EditorRoutePage,
   LoginRoutePage,
   NotFoundRoutePage,
   SettingsRoutePage
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
           {
             path: ROUTE_PATHS.settings,
             element: <SettingsRoutePage />
+          },
+          {
+            path: ROUTE_PATHS.editor,
+            element: <EditorRoutePage />
           }
         ]
       }
