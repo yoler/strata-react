@@ -1,9 +1,33 @@
 import { Badge } from "@/shared/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 import { NotionEditor } from "@/widgets/editor";
+import type { UploadImageOptions } from "@/widgets/editor/types";
+
+const mockUploadImage = async (file: File, options?: UploadImageOptions) => {
+  console.log("Mock uploading file: ", file.name);
+
+  return new Promise<string>((resolve, reject) => {
+    let progress = 0;
+
+    const intervalId = window.setInterval(() => {
+      if (options?.signal?.aborted) {
+        window.clearInterval(intervalId);
+        reject(new DOMException("Upload cancelled", "AbortError"));
+        return;
+      }
+
+      progress = Math.min(progress + 10, 100);
+      options?.onProgress?.(progress);
+
+      if (progress >= 100) {
+        window.clearInterval(intervalId);
+        resolve(URL.createObjectURL(file));
+      }
+    }, 180);
+  });
+};
 
 export function EditorPage() {
-
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -22,10 +46,7 @@ export function EditorPage() {
         <CardContent>
           <NotionEditor
             initialContent={`<p>Try typing <strong>/</strong> to see the slash command menu.</p><p>Or select this text to see the floating bubble menu.</p><p>Hover on the left edge of this text to drag it around!</p>`}
-            uploadImage={async (file: File) => {
-              console.log("Mock uploading file: ", file.name);
-              return new Promise<string>((resolve) => setTimeout(() => resolve(URL.createObjectURL(file)), 1000));
-            }}
+            uploadImage={mockUploadImage}
           />
         </CardContent>
       </Card>

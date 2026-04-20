@@ -1,6 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu as TiptapBubbleMenu } from "@tiptap/react/menus";
+import { NodeSelection } from "@tiptap/pm/state";
 
 import { cn } from "@/shared/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
@@ -41,6 +42,55 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   return (
     <TiptapBubbleMenu
       editor={editor}
+      shouldShow={({ editor: currentEditor }) => {
+        const { selection } = currentEditor.state;
+
+        if (selection.empty) {
+          return false;
+        }
+
+        if (
+          selection instanceof NodeSelection &&
+          (selection.node.type.name === "imageUpload" ||
+            selection.node.type.name === "image" ||
+            selection.node.type.name === "codeBlock" ||
+            selection.node.type.name === "videoEmbed" ||
+            selection.node.type.name === "videoEmbedInput")
+        ) {
+          return false;
+        }
+
+        const { from, to } = selection;
+        let containsBlockedNode = false;
+
+        currentEditor.state.doc.nodesBetween(from, to, (node) => {
+          if (
+            node.type.name === "imageUpload" ||
+            node.type.name === "image" ||
+            node.type.name === "codeBlock" ||
+            node.type.name === "videoEmbed" ||
+            node.type.name === "videoEmbedInput"
+          ) {
+            containsBlockedNode = true;
+            return false;
+          }
+
+          return true;
+        });
+
+        if (
+          containsBlockedNode ||
+          currentEditor.isActive("imageUpload") ||
+          currentEditor.isActive("image") ||
+          currentEditor.isActive("codeBlock") ||
+          currentEditor.isActive("videoEmbed") ||
+          currentEditor.isActive("videoEmbedInput")
+        ) {
+          return false;
+        }
+
+        return true;
+      }}
       className={cn(
         "flex items-center gap-1 overflow-hidden rounded-full border-none bg-white p-1.5",
         "shadow-[0_10px_30px_rgba(0,0,0,0.15)] dark:bg-neutral-900"

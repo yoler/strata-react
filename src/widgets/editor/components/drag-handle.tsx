@@ -13,7 +13,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
 
 export function DragHandle({ editor }: { editor: Editor }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,6 +56,22 @@ export function DragHandle({ editor }: { editor: Editor }) {
     const current = getCurrentNode();
 
     if (current) {
+      const isEmptyTextBlock = current.node.isTextblock && current.node.textContent.trim() === "";
+      const isSlashOnlyTextBlock = current.node.isTextblock && current.node.textContent.trim() === "/";
+
+      if (isEmptyTextBlock) {
+        editor.chain().focus(current.pos + 1).insertContent("/").run();
+        return;
+      }
+
+      if (isSlashOnlyTextBlock) {
+        const from = current.pos + 1;
+        const to = current.pos + current.node.nodeSize - 1;
+
+        editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, "/").setTextSelection(from + 1).run();
+        return;
+      }
+
       const endOfBlock = current.pos + current.node.nodeSize;
       editor
         .chain()
@@ -80,7 +95,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
       .run();
   };
 
-  const handleGripPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleGripPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     isDraggingRef.current = false;
     startPosRef.current = { x: event.clientX, y: event.clientY };
 
@@ -171,59 +186,50 @@ export function DragHandle({ editor }: { editor: Editor }) {
   };
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <TiptapDragHandle
-        editor={editor}
-        onNodeChange={({ pos }) => {
-          currentNodePosRef.current = pos;
-        }}
-        onElementDragStart={() => setIsDragging(true)}
-        onElementDragEnd={() => setIsDragging(false)}
+    <TiptapDragHandle
+      editor={editor}
+      className="drag-handle-shell"
+      onNodeChange={({ pos }) => {
+        currentNodePosRef.current = pos;
+      }}
+      onElementDragStart={() => setIsDragging(true)}
+      onElementDragEnd={() => setIsDragging(false)}
+    >
+      <div
+        className={`drag-handle-buttons flex items-start gap-px pr-1 text-muted-foreground/50 hover:text-muted-foreground ${
+          isDragging ? "pointer-events-none scale-95 opacity-0" : ""
+        }`}
       >
-        <div
-          className={`drag-handle-buttons flex items-center gap-px pr-1 text-muted-foreground/50 transition-opacity hover:text-muted-foreground ${isDragging ? "pointer-events-none opacity-0" : ""
-            }`}
+        <button
+          type="button"
+          title="Insert block"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={handleAddBlock}
+          className="drag-handle-action drag-handle-add flex h-8 w-6 items-center justify-center rounded-full"
         >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onMouseDown={(event) => event.stopPropagation()}
-                onClick={handleAddBlock}
-                className="flex h-7 w-6 items-center justify-center rounded-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Plus className="size-4" strokeWidth={2} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Insert block</TooltipContent>
-          </Tooltip>
+          <Plus className="size-4" strokeWidth={2} />
+        </button>
 
-          <div className="relative flex h-7 w-5 items-center justify-center">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  onPointerDown={handleGripPointerDown}
-                  className="flex h-7 w-5 cursor-grab items-center justify-center rounded-sm transition-colors hover:bg-accent hover:text-accent-foreground active:cursor-grabbing"
-                >
-                  <GripVertical className="size-4" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="font-medium">Click for options</div>
-                <div className="text-muted-foreground">Hold for drag</div>
-              </TooltipContent>
-            </Tooltip>
+        <div className="relative ml-px flex h-8 w-5 items-center justify-center">
+          <button
+            type="button"
+            title="Click for options. Hold for drag."
+            onPointerDown={handleGripPointerDown}
+            className="drag-handle-action drag-handle-grip flex h-8 w-5 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
+          >
+            <GripVertical className="size-[15px]" strokeWidth={1.8} />
+          </button>
 
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <span
-                  className="pointer-events-none absolute inset-0 outline-none"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                />
-              </DropdownMenuTrigger>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <span
+                className="pointer-events-none absolute inset-0 outline-none"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+            </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="start" className="w-52" sideOffset={8}>
+            <DropdownMenuContent align="start" className="w-52" sideOffset={8}>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <div className="flex items-center font-medium">Turn into</div>
@@ -283,11 +289,10 @@ export function DragHandle({ editor }: { editor: Editor }) {
                 >
                   <Trash2 className="mr-2 size-4" /> Delete
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </TiptapDragHandle>
-    </TooltipProvider>
+      </div>
+    </TiptapDragHandle>
   );
 }

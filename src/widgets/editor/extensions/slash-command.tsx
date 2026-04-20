@@ -3,23 +3,19 @@ import { Extension } from "@tiptap/core";
 import { ReactRenderer } from "@tiptap/react";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
 import Suggestion from "@tiptap/suggestion";
-import {
-  CodeSquare,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  ListTodo,
-  Minus,
-  Quote,
-  Table as TableIcon,
-  Type,
-} from "lucide-react";
+import { CodeSquare, Heading1, Heading2, Heading3, Image as ImageIcon, List, ListOrdered, ListTodo, Minus, Quote, Smile, Table as TableIcon, Type, Video } from "lucide-react";
+import { PluginKey } from "prosemirror-state";
 
 import { SlashCommandMenu, type SlashCommandItem, type SlashCommandMenuHandle } from "../components/slash-command-menu";
+import { DEFAULT_CODE_BLOCK_LANGUAGE } from "../lib/code-block";
 
-function getSuggestionItems({ query }: { query: string }): SlashCommandItem[] {
+const slashCommandPluginKey = new PluginKey("slash-command-suggestion");
+
+function getSuggestionItems({
+  query,
+}: {
+  query: string;
+}): SlashCommandItem[] {
   const normalizedQuery = query.toLowerCase();
   const items: SlashCommandItem[] = [
     {
@@ -113,12 +109,39 @@ function getSuggestionItems({ query }: { query: string }): SlashCommandItem[] {
       },
     },
     {
+      title: "Emoji",
+      description: "Open the emoji picker.",
+      icon: Smile,
+      group: "Advanced",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertContent(":").run();
+      },
+    },
+    {
+      title: "Image",
+      description: "Insert an image upload block.",
+      icon: ImageIcon,
+      group: "Advanced",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).setImageUploadNode().run();
+      },
+    },
+    {
+      title: "Video",
+      description: "Embed a video from a link.",
+      icon: Video,
+      group: "Advanced",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).setVideoEmbedInput().run();
+      },
+    },
+    {
       title: "Code block",
       description: "Capture a code snippet.",
       icon: CodeSquare,
       group: "Advanced",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setNode("codeBlock").run();
+        editor.chain().focus().deleteRange(range).setNode("codeBlock", { language: DEFAULT_CODE_BLOCK_LANGUAGE }).run();
       },
     },
   ];
@@ -215,10 +238,11 @@ export const SlashCommand = Extension.create({
       Suggestion<SlashCommandItem, SlashCommandItem>({
         editor: this.editor,
         ...this.options.suggestion,
-        items: getSuggestionItems,
+        pluginKey: slashCommandPluginKey,
+        items: ({ query }) => getSuggestionItems({ query }),
         render: renderItems,
-        decorationClass: "slash-command-decorator",
-        decorationContent: "",
+        decorationClass: "tiptap-slash-decoration is-empty",
+        decorationContent: "Filter...",
       }),
     ];
   },

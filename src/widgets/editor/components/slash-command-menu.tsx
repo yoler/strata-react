@@ -67,8 +67,8 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
 
   if (!items.length) {
     return (
-      <Command className="w-[320px] rounded-xl border shadow-lg">
-        <CommandEmpty className="text-muted-foreground py-4">No matching commands</CommandEmpty>
+      <Command className="tiptap-slash-card w-[238px] border bg-white dark:bg-neutral-950">
+        <CommandEmpty className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching commands</CommandEmpty>
       </Command>
     );
   }
@@ -83,10 +83,10 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
   }, {});
 
   return (
-    <Command className="w-[320px] rounded-xl border shadow-lg">
-      <CommandList className="max-h-[320px] p-1.5">
+    <Command className="tiptap-slash-card w-[238px] border bg-white dark:bg-neutral-950">
+      <CommandList className="tiptap-slash-card-body max-h-[340px] p-0">
         {Object.entries(groupedItems).map(([group, groupItems]) => (
-          <CommandGroup key={group} heading={group}>
+          <CommandGroup key={group} heading={group} className="mb-0 last:mb-0">
             {groupItems.map((item) => {
               const Icon = item.icon;
 
@@ -97,13 +97,10 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
                   onMouseEnter={() => setSelectedIndex(item.index)}
                   onSelect={() => selectItem(item.index)}
                   value={item.title}
-                  className="items-start gap-3"
+                  className="tiptap-slash-card-item items-center gap-1 rounded-xl px-2 py-2"
                 >
-                  <Icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-                  <div className="min-w-0">
-                    <div className="font-medium">{item.title}</div>
-                    <div className="text-muted-foreground text-xs">{item.description}</div>
-                  </div>
+                  <Icon className="text-muted-foreground size-[14px] shrink-0" />
+                  <div className="min-w-0 text-[14px] leading-[16.1px] font-medium tracking-normal">{item.title}</div>
                 </CommandItem>
               );
             })}
