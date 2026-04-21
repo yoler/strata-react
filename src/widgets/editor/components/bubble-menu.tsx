@@ -1,118 +1,991 @@
+import { NodeSelection } from "@tiptap/pm/state";
+import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu as TiptapBubbleMenu } from "@tiptap/react/menus";
-import { NodeSelection } from "@tiptap/pm/state";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  ChevronDown,
+  Code,
+  CornerDownLeft,
+  ExternalLink,
+  Heading1,
+  Heading2,
+  Heading3,
+  Italic,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  ListTodo,
+  RemoveFormatting,
+  MoreVertical,
+  Pilcrow,
+  Quote,
+  Strikethrough,
+  Subscript,
+  Superscript,
+  Trash2,
+  Underline,
+  IndentDecrease,
+  IndentIncrease,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+  type MouseEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import { cn } from "@/shared/lib/utils";
-import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 
 type EditorBubbleMenuProps = {
   editor: Editor;
 };
 
+type TurnIntoItem = {
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  isActive: boolean;
+  label: string;
+  run: () => void;
+  value: string;
+};
+
+type MenuKind = "turn-into" | "color" | "link" | "more" | null;
+
+type MenuPosition = {
+  left: number;
+  top: number;
+};
+
+type ColorItem = {
+  label: string;
+  value: string;
+};
+
+type RecentColorItem = ColorItem & {
+  kind: "highlight" | "text";
+};
+
+const TEXT_BUBBLE_MENU_PLUGIN_KEY = "text-bubble-menu";
+const RECENT_COLORS_STORAGE_KEY = "notion-editor:recent-colors";
+const MAX_RECENT_COLORS = 3;
+const FLOATING_MENU_VIEWPORT_PADDING = 8;
+const floatingMenuSizeByKind: Record<Exclude<MenuKind, null>, { height: number; width: number }> = {
+  color: { height: 304, width: 184 },
+  link: { height: 44, width: 320 },
+  more: { height: 44, width: 314 },
+  "turn-into": { height: 304, width: 164 },
+};
+
+const textColors: ColorItem[] = [
+  { label: "Default", value: "" },
+  { label: "Gray", value: "#6b7280" },
+  { label: "Brown", value: "#92400e" },
+  { label: "Orange", value: "#ea580c" },
+  { label: "Yellow", value: "#ca8a04" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Purple", value: "#7c3aed" },
+  { label: "Pink", value: "#db2777" },
+  { label: "Red", value: "#dc2626" },
+];
+
+const highlightColors: ColorItem[] = [
+  { label: "Default", value: "" },
+  { label: "Gray", value: "#f3f4f6" },
+  { label: "Brown", value: "#f3e8dc" },
+  { label: "Orange", value: "#ffedd5" },
+  { label: "Yellow", value: "#fef9c3" },
+  { label: "Green", value: "#dcfce7" },
+  { label: "Blue", value: "#dbeafe" },
+  { label: "Purple", value: "#ede9fe" },
+  { label: "Pink", value: "#fce7f3" },
+  { label: "Red", value: "#fee2e2" },
+];
+
+const blockedNodeNames = new Set(["imageUpload", "image", "codeBlock", "videoEmbed", "videoEmbedInput"]);
+
+function isBlockedSelection(editor: Editor) {
+  const { selection } = editor.state;
+
+  if (selection.empty) {
+    return true;
+  }
+
+  if (selection instanceof CellSelection) {
+    return true;
+  }
+
+  if (selection instanceof NodeSelection) {
+    return blockedNodeNames.has(selection.node.type.name);
+  }
+
+  if (
+    editor.isActive("imageUpload") ||
+    editor.isActive("image") ||
+    editor.isActive("codeBlock") ||
+    editor.isActive("videoEmbed") ||
+    editor.isActive("videoEmbedInput")
+  ) {
+    return true;
+  }
+
+  if (selection.to - selection.from < 240) {
+    return false;
+  }
+
+  let containsBlockedNode = false;
+  editor.state.doc.nodesBetween(selection.from, selection.to, (node) => {
+    if (blockedNodeNames.has(node.type.name)) {
+      containsBlockedNode = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return containsBlockedNode;
+}
+
+function getCurrentBlockLabel(editor: Editor) {
+  if (editor.isActive("heading", { level: 1 })) return "Heading 1";
+  if (editor.isActive("heading", { level: 2 })) return "Heading 2";
+  if (editor.isActive("heading", { level: 3 })) return "Heading 3";
+  if (editor.isActive("bulletList")) return "Bullet list";
+  if (editor.isActive("orderedList")) return "Numbered list";
+  if (editor.isActive("taskList")) return "To-do list";
+  if (editor.isActive("blockquote")) return "Quote";
+  return "Text";
+}
+
+function getColorLabel(value: string, palette: ColorItem[]) {
+  return palette.find((color) => color.value.toLowerCase() === value.toLowerCase())?.label ?? value;
+}
+
+function getRecentColorLabel(color: RecentColorItem) {
+  return getColorLabel(color.value, color.kind === "text" ? textColors : highlightColors);
+}
+
+function readRecentColors() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(RECENT_COLORS_STORAGE_KEY);
+    const parsedValue = rawValue ? JSON.parse(rawValue) : [];
+
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue
+      .filter((color): color is RecentColorItem => {
+        return (
+          typeof color === "object" &&
+          color !== null &&
+          (color.kind === "text" || color.kind === "highlight") &&
+          typeof color.value === "string" &&
+          color.value.trim().length > 0
+        );
+      })
+      .slice(0, MAX_RECENT_COLORS)
+      .map((color) => ({
+        kind: color.kind,
+        label: getRecentColorLabel(color),
+        value: color.value.trim().toLowerCase(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentColors(colors: RecentColorItem[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(RECENT_COLORS_STORAGE_KEY, JSON.stringify(colors));
+}
+
 export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
-  // 使用 useEditorState 按需订阅状态，提升性能
-  const { isBold, isItalic, isStrike } = useEditorState({
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const turnIntoRef = useRef<HTMLButtonElement | null>(null);
+  const linkRef = useRef<HTMLButtonElement | null>(null);
+  const colorRef = useRef<HTMLButtonElement | null>(null);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const linkInputRef = useRef<HTMLInputElement | null>(null);
+  const [openMenu, setOpenMenu] = useState<MenuKind>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({ left: 0, top: 0 });
+  const [linkUrl, setLinkUrl] = useState("");
+  const [recentColors, setRecentColors] = useState<RecentColorItem[]>(() => readRecentColors());
+  const handleBubbleMenuHide = useCallback(() => {
+    setOpenMenu(null);
+  }, []);
+
+  const shouldShow = useCallback(
+    ({
+      editor: currentEditor,
+      element,
+      from,
+      state,
+      to,
+      view,
+    }: Parameters<NonNullable<ComponentProps<typeof TiptapBubbleMenu>["shouldShow"]>>[0]) => {
+      const { doc, selection } = state;
+      const isEmptyTextBlock = !doc.textBetween(from, to).length && selection.empty;
+      const isChildOfMenu = element.contains(document.activeElement);
+      const hasEditorFocus = view.hasFocus() || isChildOfMenu;
+
+      if (!hasEditorFocus || selection.empty || isEmptyTextBlock || !currentEditor.isEditable) {
+        return false;
+      }
+
+      return !isBlockedSelection(currentEditor);
+    },
+    [],
+  );
+
+  const state = useEditorState({
     editor,
-    selector: (ctx) => ({
-      isBold: ctx.editor.isActive("bold"),
-      isItalic: ctx.editor.isActive("italic"),
-      isStrike: ctx.editor.isActive("strike"),
-      isBulletList: ctx.editor.isActive("bulletList"),
-      isOrderedList: ctx.editor.isActive("orderedList"),
+    selector: ({ editor: currentEditor }) => ({
+      blockLabel: getCurrentBlockLabel(currentEditor),
+      isBlockquote: currentEditor.isActive("blockquote"),
+      isBold: currentEditor.isActive("bold"),
+      isBulletList: currentEditor.isActive("bulletList"),
+      isCode: currentEditor.isActive("code"),
+      isHeading1: currentEditor.isActive("heading", { level: 1 }),
+      isHeading2: currentEditor.isActive("heading", { level: 2 }),
+      isHeading3: currentEditor.isActive("heading", { level: 3 }),
+      isItalic: currentEditor.isActive("italic"),
+      isLink: currentEditor.isActive("link"),
+      isOrderedList: currentEditor.isActive("orderedList"),
+      isSubscript: currentEditor.isActive("subscript"),
+      isSuperscript: currentEditor.isActive("superscript"),
+      isTextAlignCenter: currentEditor.isActive({ textAlign: "center" }),
+      isTextAlignJustify: currentEditor.isActive({ textAlign: "justify" }),
+      isTextAlignLeft: currentEditor.isActive({ textAlign: "left" }),
+      isTextAlignRight: currentEditor.isActive({ textAlign: "right" }),
+      currentHighlightColor: (currentEditor.getAttributes("highlight").color as string | undefined) ?? "",
+      currentTextColor: (currentEditor.getAttributes("textStyle").color as string | undefined) ?? "",
+      isStrike: currentEditor.isActive("strike"),
+      isTaskList: currentEditor.isActive("taskList"),
+      isUnderline: currentEditor.isActive("underline"),
     }),
   });
 
-  // 同步 ToggleGroup 的值
-  const activeValues = [];
-  if (isBold) activeValues.push("bold");
-  if (isItalic) activeValues.push("italic");
-  if (isStrike) activeValues.push("strike");
-
-  const handleToggle = (values: string[]) => {
-    const chain = editor.chain().focus();
-    if (values.includes("bold") !== isBold) chain.toggleBold();
-    if (values.includes("italic") !== isItalic) chain.toggleItalic();
-    if (values.includes("strike") !== isStrike) chain.toggleStrike();
-    chain.run();
+  const keepSelection = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
   };
 
-  if (!editor) return null;
+  const openFloatingMenu = (kind: Exclude<MenuKind, null>, trigger: HTMLButtonElement | null) => {
+    if (!trigger || !toolbarRef.current) {
+      return;
+    }
+
+    const toolbarRect = toolbarRef.current.getBoundingClientRect();
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuSize = floatingMenuSizeByKind[kind];
+    let left = triggerRect.left - toolbarRect.left;
+    let top = triggerRect.bottom - toolbarRect.top + 8;
+    const viewportRight = window.innerWidth - FLOATING_MENU_VIEWPORT_PADDING;
+    const viewportBottom = window.innerHeight - FLOATING_MENU_VIEWPORT_PADDING;
+    const absoluteLeft = toolbarRect.left + left;
+    const absoluteTop = toolbarRect.top + top;
+
+    if (absoluteLeft + menuSize.width > viewportRight) {
+      left -= absoluteLeft + menuSize.width - viewportRight;
+    }
+
+    if (toolbarRect.left + left < FLOATING_MENU_VIEWPORT_PADDING) {
+      left += FLOATING_MENU_VIEWPORT_PADDING - (toolbarRect.left + left);
+    }
+
+    if (absoluteTop + menuSize.height > viewportBottom) {
+      top = triggerRect.top - toolbarRect.top - menuSize.height - 8;
+    }
+
+    setMenuPosition({
+      left,
+      top,
+    });
+    setOpenMenu((current) => (current === kind ? null : kind));
+  };
+
+  useEffect(() => {
+    if (!openMenu) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+
+      if (
+        target &&
+        (menuRef.current?.contains(target) ||
+          turnIntoRef.current?.contains(target) ||
+          linkRef.current?.contains(target) ||
+          colorRef.current?.contains(target) ||
+          moreRef.current?.contains(target))
+      ) {
+        return;
+      }
+
+      setOpenMenu(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenMenu(null);
+      }
+    };
+
+    const handleScroll = () => setOpenMenu(null);
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [openMenu]);
+
+  useEffect(() => {
+    if (openMenu !== "link") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      linkInputRef.current?.focus();
+      linkInputRef.current?.select();
+    });
+  }, [openMenu]);
+
+  const turnIntoItems: TurnIntoItem[] = useMemo(
+    () => [
+      {
+        icon: Pilcrow,
+        isActive: state.blockLabel === "Text",
+        label: "Text",
+        run: () => editor.chain().focus().setParagraph().run(),
+        value: "text",
+      },
+      {
+        icon: Heading1,
+        isActive: state.isHeading1,
+        label: "Heading 1",
+        run: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        value: "heading-1",
+      },
+      {
+        icon: Heading2,
+        isActive: state.isHeading2,
+        label: "Heading 2",
+        run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        value: "heading-2",
+      },
+      {
+        icon: Heading3,
+        isActive: state.isHeading3,
+        label: "Heading 3",
+        run: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        value: "heading-3",
+      },
+      {
+        icon: List,
+        isActive: state.isBulletList,
+        label: "Bullet list",
+        run: () => editor.chain().focus().toggleBulletList().run(),
+        value: "bullet-list",
+      },
+      {
+        icon: ListOrdered,
+        isActive: state.isOrderedList,
+        label: "Numbered list",
+        run: () => editor.chain().focus().toggleOrderedList().run(),
+        value: "numbered-list",
+      },
+      {
+        icon: ListTodo,
+        isActive: state.isTaskList,
+        label: "To-do list",
+        run: () => editor.chain().focus().toggleTaskList().run(),
+        value: "todo-list",
+      },
+      {
+        icon: Quote,
+        isActive: state.isBlockquote,
+        label: "Quote",
+        run: () => editor.chain().focus().toggleBlockquote().run(),
+        value: "quote",
+      },
+    ],
+    [
+      editor,
+      state.blockLabel,
+      state.isBlockquote,
+      state.isBulletList,
+      state.isHeading1,
+      state.isHeading2,
+      state.isHeading3,
+      state.isOrderedList,
+      state.isTaskList,
+    ],
+  );
+
+  const handleLink = () => {
+    setLinkUrl((editor.getAttributes("link").href as string | undefined) ?? "");
+    openFloatingMenu("link", linkRef.current);
+  };
+
+  const applyLink = () => {
+    const trimmedUrl = linkUrl.trim();
+
+    if (!trimmedUrl) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      setOpenMenu(null);
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: trimmedUrl }).run();
+    setOpenMenu(null);
+  };
+
+  const handleLinkInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      applyLink();
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setOpenMenu(null);
+    }
+  };
+
+  const openCurrentLink = () => {
+    const trimmedUrl = linkUrl.trim() || ((editor.getAttributes("link").href as string | undefined) ?? "");
+
+    if (!trimmedUrl) {
+      return;
+    }
+
+    window.open(trimmedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const removeLink = () => {
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setLinkUrl("");
+    setOpenMenu(null);
+  };
+
+  const applyTextColor = (value: string) => {
+    if (!value) {
+      editor.chain().focus().unsetColor().run();
+      return;
+    }
+
+    editor.chain().focus().setColor(value).run();
+    rememberRecentColor("text", value);
+  };
+
+  const applyHighlightColor = (value: string) => {
+    if (!value) {
+      editor.chain().focus().unsetHighlight().run();
+      return;
+    }
+
+    editor.chain().focus().setHighlight({ color: value }).run();
+    rememberRecentColor("highlight", value);
+  };
+
+  const rememberRecentColor = (kind: RecentColorItem["kind"], value: string) => {
+    const normalizedValue = value.trim().toLowerCase();
+
+    if (!normalizedValue) {
+      return;
+    }
+
+    const nextRecentColors = [
+      {
+        kind,
+        label: getColorLabel(normalizedValue, kind === "text" ? textColors : highlightColors),
+        value: normalizedValue,
+      },
+      ...recentColors.filter((color) => color.kind !== kind || color.value !== normalizedValue),
+    ].slice(0, MAX_RECENT_COLORS);
+
+    setRecentColors(nextRecentColors);
+    writeRecentColors(nextRecentColors);
+  };
 
   return (
     <TiptapBubbleMenu
       editor={editor}
-      shouldShow={({ editor: currentEditor }) => {
-        const { selection } = currentEditor.state;
-
-        if (selection.empty) {
-          return false;
-        }
-
-        if (
-          selection instanceof NodeSelection &&
-          (selection.node.type.name === "imageUpload" ||
-            selection.node.type.name === "image" ||
-            selection.node.type.name === "codeBlock" ||
-            selection.node.type.name === "videoEmbed" ||
-            selection.node.type.name === "videoEmbedInput")
-        ) {
-          return false;
-        }
-
-        const { from, to } = selection;
-        let containsBlockedNode = false;
-
-        currentEditor.state.doc.nodesBetween(from, to, (node) => {
-          if (
-            node.type.name === "imageUpload" ||
-            node.type.name === "image" ||
-            node.type.name === "codeBlock" ||
-            node.type.name === "videoEmbed" ||
-            node.type.name === "videoEmbedInput"
-          ) {
-            containsBlockedNode = true;
-            return false;
-          }
-
-          return true;
-        });
-
-        if (
-          containsBlockedNode ||
-          currentEditor.isActive("imageUpload") ||
-          currentEditor.isActive("image") ||
-          currentEditor.isActive("codeBlock") ||
-          currentEditor.isActive("videoEmbed") ||
-          currentEditor.isActive("videoEmbedInput")
-        ) {
-          return false;
-        }
-
-        return true;
+      pluginKey={TEXT_BUBBLE_MENU_PLUGIN_KEY}
+      shouldShow={shouldShow}
+      options={{
+        placement: "top",
+        offset: 12,
+        strategy: "fixed",
+        onHide: handleBubbleMenuHide,
       }}
-      className={cn(
-        "flex items-center gap-1 overflow-hidden rounded-full border-none bg-white p-1.5",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.15)] dark:bg-neutral-900"
-      )}
+      appendTo={() => document.body}
+      className="tiptap-toolbar text-bubble-menu"
+      data-variant="floating"
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label="toolbar"
     >
-      <ToggleGroup
-        type="multiple"
-        value={activeValues}
-        onValueChange={handleToggle}
-        size="sm"
-        className="gap-1"
-      >
-        <ToggleGroupItem value="bold" className="px-4">
-          Bold
-        </ToggleGroupItem>
-        <ToggleGroupItem value="italic" className="px-4">
-          Italic
-        </ToggleGroupItem>
-        <ToggleGroupItem value="strike" className="px-4">
-          Strike
-        </ToggleGroupItem>
-      </ToggleGroup>
+      <div className="tiptap-toolbar-group" role="group">
+        <button
+          ref={turnIntoRef}
+          aria-label={`Turn into (current: ${state.blockLabel})`}
+          className="tiptap-button tiptap-button-turn-into"
+          data-style="ghost"
+          data-tooltip="Turn into"
+          onMouseDown={keepSelection}
+          onClick={() => openFloatingMenu("turn-into", turnIntoRef.current)}
+          type="button"
+        >
+          <span className="tiptap-button-text">{state.blockLabel}</span>
+          <ChevronDown className="tiptap-button-dropdown-small size-3.5" strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div className="tiptap-separator" data-orientation="vertical" role="none" />
+
+      <div className="tiptap-toolbar-group" role="group">
+        <button
+          aria-label="Bold"
+          aria-pressed={state.isBold}
+          className={cn("tiptap-button", state.isBold && "is-active")}
+          data-active-state={state.isBold ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Bold"
+          onMouseDown={keepSelection}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          type="button"
+        >
+          <Bold className="tiptap-button-icon size-4" strokeWidth={2} />
+        </button>
+        <button
+          aria-label="Italic"
+          aria-pressed={state.isItalic}
+          className={cn("tiptap-button", state.isItalic && "is-active")}
+          data-active-state={state.isItalic ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Italic"
+          onMouseDown={keepSelection}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          type="button"
+        >
+          <Italic className="tiptap-button-icon size-4" strokeWidth={2} />
+        </button>
+        <button
+          aria-label="Underline"
+          aria-pressed={state.isUnderline}
+          className={cn("tiptap-button", state.isUnderline && "is-active")}
+          data-active-state={state.isUnderline ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Underline"
+          onMouseDown={keepSelection}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          type="button"
+        >
+          <Underline className="tiptap-button-icon size-4" strokeWidth={2} />
+        </button>
+        <button
+          aria-label="Strike"
+          aria-pressed={state.isStrike}
+          className={cn("tiptap-button", state.isStrike && "is-active")}
+          data-active-state={state.isStrike ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Strike"
+          onMouseDown={keepSelection}
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          type="button"
+        >
+          <Strikethrough className="tiptap-button-icon size-4" strokeWidth={2} />
+        </button>
+        <button
+          aria-label="Code"
+          aria-pressed={state.isCode}
+          className={cn("tiptap-button", state.isCode && "is-active")}
+          data-active-state={state.isCode ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Code"
+          onMouseDown={keepSelection}
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          type="button"
+        >
+          <Code className="tiptap-button-icon size-4" strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="tiptap-separator" data-orientation="vertical" role="none" />
+
+      <div className="tiptap-toolbar-group" role="group">
+        <button
+          ref={linkRef}
+          aria-label="Link"
+          aria-pressed={state.isLink}
+          className={cn("tiptap-button", state.isLink && "is-active")}
+          data-active-state={state.isLink ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Link"
+          onMouseDown={keepSelection}
+          onClick={handleLink}
+          type="button"
+        >
+          <LinkIcon className="tiptap-button-icon size-4" strokeWidth={1.9} />
+        </button>
+        <button
+          ref={colorRef}
+          aria-label="Text color"
+          aria-pressed={Boolean(state.currentTextColor || state.currentHighlightColor)}
+          className={cn("tiptap-button tiptap-button-color", (state.currentTextColor || state.currentHighlightColor) && "is-active")}
+          data-active-state={state.currentTextColor || state.currentHighlightColor ? "on" : "off"}
+          data-style="ghost"
+          data-tooltip="Text color"
+          onMouseDown={keepSelection}
+          onClick={() => openFloatingMenu("color", colorRef.current)}
+          type="button"
+        >
+          <span
+            className="tiptap-button-color-indicator"
+            style={{
+              backgroundColor: state.currentHighlightColor || undefined,
+              color: state.currentTextColor || undefined,
+            }}
+          >
+            A
+          </span>
+          <ChevronDown className="tiptap-button-dropdown-small size-3" strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div className="tiptap-separator" data-orientation="vertical" role="none" />
+
+      <div className="tiptap-toolbar-group" role="group">
+        <button
+          ref={moreRef}
+          className="tiptap-button"
+          data-style="ghost"
+          data-tooltip="More options"
+          onMouseDown={keepSelection}
+          onClick={() => openFloatingMenu("more", moreRef.current)}
+          type="button"
+        >
+          <MoreVertical className="tiptap-button-icon size-4" strokeWidth={1.9} />
+        </button>
+      </div>
+
+      {openMenu && (
+        <div
+          ref={menuRef}
+          className="text-bubble-menu-floating-dropdown"
+          style={{ left: `${menuPosition.left}px`, top: `${menuPosition.top}px` }}
+        >
+          <div
+            className={cn(
+              "text-bubble-menu-dropdown",
+              openMenu === "color" && "is-color-palette",
+              openMenu === "link" && "is-link-popover",
+              openMenu === "more" && "is-more-menu",
+            )}
+          >
+            {openMenu === "turn-into" && (
+              <>
+                <div className="text-bubble-menu-dropdown-label">Turn Into</div>
+                {turnIntoItems.map((item) => (
+                  <button
+                    key={item.value}
+                    className={cn("tiptap-dropdown-menu-item text-bubble-menu-dropdown-item", item.isActive && "is-active")}
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      item.run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <item.icon className="size-4" strokeWidth={1.8} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </>
+            )}
+
+            {openMenu === "color" && (
+              <div className="text-bubble-color-palette">
+                {recentColors.length > 0 && (
+                  <>
+                    <div className="text-bubble-menu-dropdown-label">Recently Used</div>
+                    <div className="text-bubble-color-grid is-recent">
+                      {recentColors.map((color) => (
+                        <button
+                          key={`recent-${color.kind}-${color.value}`}
+                          aria-label={`${color.label} ${color.kind === "text" ? "text color" : "highlight color"}`}
+                          className={cn(
+                            color.kind === "text" ? "text-bubble-color-swatch" : "text-bubble-highlight-swatch",
+                          )}
+                          onMouseDown={keepSelection}
+                          onClick={() => {
+                            if (color.kind === "text") {
+                              applyTextColor(color.value);
+                            } else {
+                              applyHighlightColor(color.value);
+                            }
+
+                            setOpenMenu(null);
+                          }}
+                          style={color.kind === "text" ? { color: color.value } : undefined}
+                          type="button"
+                        >
+                          {color.kind === "text" ? (
+                            <span className="text-bubble-color-swatch-label">A</span>
+                          ) : (
+                            <span className="text-bubble-highlight-swatch-dot" style={{ background: color.value }} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className="text-bubble-menu-dropdown-label">Text Color</div>
+                <div className="text-bubble-color-grid">
+                  {textColors.map((color) => (
+                    <button
+                      key={`text-${color.label}`}
+                      aria-label={color.label}
+                      className="text-bubble-color-swatch"
+                      onMouseDown={keepSelection}
+                      onClick={() => {
+                        applyTextColor(color.value);
+                        setOpenMenu(null);
+                      }}
+                      style={{ color: color.value || "#64748b" }}
+                      type="button"
+                    >
+                      <span className="text-bubble-color-swatch-label">A</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-bubble-menu-dropdown-label">Highlight Color</div>
+                <div className="text-bubble-color-grid">
+                  {highlightColors.map((color) => (
+                    <button
+                      key={`highlight-${color.label}`}
+                      aria-label={color.label}
+                      className="text-bubble-highlight-swatch"
+                      onMouseDown={keepSelection}
+                      onClick={() => {
+                        applyHighlightColor(color.value);
+                        setOpenMenu(null);
+                      }}
+                      type="button"
+                    >
+                      <span className="text-bubble-highlight-swatch-dot" style={{ background: color.value || "#ffffff" }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {openMenu === "link" && (
+              <div className="text-bubble-link-popover">
+                <input
+                  ref={linkInputRef}
+                  aria-label="Paste a link"
+                  className="text-bubble-link-input"
+                  onChange={(event) => setLinkUrl(event.target.value)}
+                  onKeyDown={handleLinkInputKeyDown}
+                  placeholder="Paste a link..."
+                  type="url"
+                  value={linkUrl}
+                />
+                <button
+                  aria-label="Apply link"
+                  className="text-bubble-link-action"
+                  data-tooltip="Apply link"
+                  onMouseDown={keepSelection}
+                  onClick={applyLink}
+                  type="button"
+                >
+                  <CornerDownLeft className="size-4" strokeWidth={1.8} />
+                </button>
+                <button
+                  aria-label="Open link"
+                  className="text-bubble-link-action"
+                  data-tooltip="Open link"
+                  disabled={!linkUrl.trim() && !state.isLink}
+                  onMouseDown={keepSelection}
+                  onClick={openCurrentLink}
+                  type="button"
+                >
+                  <ExternalLink className="size-4" strokeWidth={1.8} />
+                </button>
+                <button
+                  aria-label="Remove link"
+                  className="text-bubble-link-action"
+                  data-tooltip="Remove link"
+                  disabled={!state.isLink}
+                  onMouseDown={keepSelection}
+                  onClick={removeLink}
+                  type="button"
+                >
+                  <Trash2 className="size-4" strokeWidth={1.8} />
+                </button>
+              </div>
+            )}
+
+            {openMenu === "more" && (
+              <>
+                <div className="text-bubble-more-grid" role="group" aria-label="More text formatting">
+                  <button
+                    aria-label="Superscript"
+                    aria-pressed={state.isSuperscript}
+                    className={cn("text-bubble-more-button", state.isSuperscript && "is-active")}
+                    data-tooltip="Superscript"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().toggleSuperscript().run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <Superscript className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Subscript"
+                    aria-pressed={state.isSubscript}
+                    className={cn("text-bubble-more-button", state.isSubscript && "is-active")}
+                    data-tooltip="Subscript"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().toggleSubscript().run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <Subscript className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Align left"
+                    aria-pressed={state.isTextAlignLeft}
+                    className={cn("text-bubble-more-button", state.isTextAlignLeft && "is-active")}
+                    data-tooltip="Align left"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().setTextAlign("left").run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <AlignLeft className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Align center"
+                    aria-pressed={state.isTextAlignCenter}
+                    className={cn("text-bubble-more-button", state.isTextAlignCenter && "is-active")}
+                    data-tooltip="Align center"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().setTextAlign("center").run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <AlignCenter className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Align right"
+                    aria-pressed={state.isTextAlignRight}
+                    className={cn("text-bubble-more-button", state.isTextAlignRight && "is-active")}
+                    data-tooltip="Align right"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().setTextAlign("right").run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <AlignRight className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Align justify"
+                    aria-pressed={state.isTextAlignJustify}
+                    className={cn("text-bubble-more-button", state.isTextAlignJustify && "is-active")}
+                    data-tooltip="Align justify"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().setTextAlign("justify").run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <AlignJustify className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Decrease indent"
+                    className="text-bubble-more-button"
+                    data-tooltip="Decrease indent"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().decreaseIndent().run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <IndentDecrease className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Increase indent"
+                    className="text-bubble-more-button"
+                    data-tooltip="Increase indent"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().increaseIndent().run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <IndentIncrease className="size-4" strokeWidth={1.8} />
+                  </button>
+                  <button
+                    aria-label="Clear formatting"
+                    className="text-bubble-more-button"
+                    data-tooltip="Clear formatting"
+                    onMouseDown={keepSelection}
+                    onClick={() => {
+                      editor.chain().focus().unsetAllMarks().clearNodes().run();
+                      setOpenMenu(null);
+                    }}
+                    type="button"
+                  >
+                    <RemoveFormatting className="size-4" strokeWidth={1.8} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </TiptapBubbleMenu>
   );
 }

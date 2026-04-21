@@ -1,9 +1,17 @@
 import { type Editor, useEditorState } from "@tiptap/react";
+import { CellSelection, deleteCellSelection, findCellPos, moveTableColumn, moveTableRow, setCellAttr } from "@tiptap/pm/tables";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Columns2,
+  Eraser,
+  Ellipsis,
+  PaintBucket,
   Plus,
   Rows2,
   Trash2,
@@ -28,6 +36,11 @@ type TableControlsProps = {
   editor: Editor;
 };
 
+type ColorItem = {
+  label: string;
+  value: string;
+};
+
 type LayoutState = {
   activeCell: HTMLTableCellElement;
   bottomInsert: { left: number; top: number; width: number };
@@ -42,6 +55,32 @@ type LayoutState = {
 
 const isTableCell = (element: Element | null): element is HTMLTableCellElement =>
   element instanceof HTMLTableCellElement && (element.tagName === "TD" || element.tagName === "TH");
+
+const tableTextColors: ColorItem[] = [
+  { label: "Default", value: "" },
+  { label: "Gray", value: "#6b7280" },
+  { label: "Brown", value: "#92400e" },
+  { label: "Orange", value: "#ea580c" },
+  { label: "Yellow", value: "#ca8a04" },
+  { label: "Green", value: "#16a34a" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Purple", value: "#7c3aed" },
+  { label: "Pink", value: "#db2777" },
+  { label: "Red", value: "#dc2626" },
+];
+
+const tableBackgroundColors: ColorItem[] = [
+  { label: "Default", value: "" },
+  { label: "Gray", value: "#f3f4f6" },
+  { label: "Brown", value: "#f3e8dc" },
+  { label: "Orange", value: "#ffedd5" },
+  { label: "Yellow", value: "#fef9c3" },
+  { label: "Green", value: "#dcfce7" },
+  { label: "Blue", value: "#dbeafe" },
+  { label: "Purple", value: "#ede9fe" },
+  { label: "Pink", value: "#fce7f3" },
+  { label: "Red", value: "#fee2e2" },
+];
 
 const buildLayout = (cell: HTMLTableCellElement): LayoutState | null => {
   const table = cell.closest("table");
@@ -78,7 +117,7 @@ const buildLayout = (cell: HTMLTableCellElement): LayoutState | null => {
       top: tableRect.top - 14,
     },
     leftHandle: {
-      left: tableRect.left - 14,
+      left: tableRect.left - 8,
       top: rowRect.top + rowRect.height / 2,
     },
     rightInsert: {
@@ -104,10 +143,82 @@ const focusCell = (editor: Editor, cell: HTMLTableCellElement | null) => {
   }
 };
 
+const resolveCellPosition = (editor: Editor, cell: HTMLTableCellElement) => {
+  const candidates = [
+    editor.view.posAtDOM(cell, 0),
+    editor.view.posAtDOM(cell, cell.childNodes.length),
+    editor.view.posAtDOM(cell, 0) + 1,
+  ];
+
+  for (const pos of candidates) {
+    const $cell = findCellPos(editor.state.doc, pos);
+
+    if ($cell) {
+      return $cell;
+    }
+  }
+
+  return null;
+};
+
+const selectTableAxis = (editor: Editor, cell: HTMLTableCellElement | null, axis: "column" | "row") => {
+  if (!cell || !editor.view || editor.isDestroyed) {
+    return false;
+  }
+
+  try {
+    const $cell = resolveCellPosition(editor, cell);
+
+    if (!$cell) {
+      return focusCell(editor, cell);
+    }
+
+    const selection = axis === "column" ? CellSelection.colSelection($cell) : CellSelection.rowSelection($cell);
+
+    editor.view.dispatch(editor.state.tr.setSelection(selection).scrollIntoView());
+    editor.view.focus();
+    return true;
+  } catch {
+    return focusCell(editor, cell);
+  }
+};
+
+const getTableAxisInfo = (cell: HTMLTableCellElement | null) => {
+  const table = cell?.closest("table");
+  const row = cell?.closest("tr");
+
+  if (!cell || !(table instanceof HTMLTableElement) || !(row instanceof HTMLTableRowElement)) {
+    return null;
+  }
+
+  return {
+    columnIndex: cell.cellIndex,
+    columnCount: row.cells.length,
+    rowCount: table.rows.length,
+    rowIndex: Array.from(table.rows).indexOf(row),
+  };
+};
+
+const runTableCommand = (editor: Editor, command: ReturnType<typeof moveTableColumn>) => {
+  if (!editor.view || editor.isDestroyed) {
+    return false;
+  }
+
+  const didRun = command(editor.state, editor.view.dispatch);
+
+  if (didRun) {
+    editor.view.focus();
+  }
+
+  return didRun;
+};
+
 export function TableControls({ container, editor }: TableControlsProps) {
   const hoveredLayoutRef = useRef<LayoutState | null>(null);
   const controlsHoveredRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
+  const columnMenuOpenRef = useRef(false);
+  const rowMenuOpenRef = useRef(false);
   const [layout, setLayout] = useState<LayoutState | null>(null);
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const [rowMenuOpen, setRowMenuOpen] = useState(false);
@@ -119,6 +230,15 @@ export function TableControls({ container, editor }: TableControlsProps) {
       activeAlign: (activeCell?.getAttribute("data-text-align") as "left" | "center" | "right" | null) ?? "left",
     }),
   });
+
+  const activeRowIsHeader =
+    activeCell
+      ?.closest("tr")
+      ?.querySelectorAll("th").length === activeCell?.closest("tr")?.cells.length;
+  const activeColumnIsHeader =
+    activeCell?.closest("table")
+      ? Array.from(activeCell.closest("table")?.rows ?? []).every((row) => row.cells[activeCell.cellIndex]?.tagName === "TH")
+      : false;
 
   const syncHoveredLayout = useCallback(
     (cell: HTMLTableCellElement | null) => {
@@ -137,7 +257,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
           }
 
           hideTimeoutRef.current = window.setTimeout(() => {
-            if (!controlsHoveredRef.current && !columnMenuOpen && !rowMenuOpen) {
+            if (!controlsHoveredRef.current && !columnMenuOpenRef.current && !rowMenuOpenRef.current) {
               setLayout(null);
             }
           }, 120);
@@ -189,13 +309,14 @@ export function TableControls({ container, editor }: TableControlsProps) {
   useEffect(() => {
     const refresh = () => {
       if (hoveredLayoutRef.current?.activeCell?.isConnected) {
-        const nextLayout = buildLayout(hoveredLayoutRef.current.activeCell);
+        const activeHoveredCell = hoveredLayoutRef.current.activeCell;
+        const nextLayout = buildLayout(activeHoveredCell);
         hoveredLayoutRef.current = nextLayout;
         setLayout(nextLayout);
         return;
       }
 
-      if (!columnMenuOpen && !rowMenuOpen && !controlsHoveredRef.current) {
+      if (!columnMenuOpenRef.current && !rowMenuOpenRef.current && !controlsHoveredRef.current) {
         setLayout(null);
       }
     };
@@ -213,7 +334,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
       window.removeEventListener("resize", refresh);
       window.removeEventListener("scroll", refresh, true);
     };
-  }, [columnMenuOpen, editor, rowMenuOpen]);
+  }, [editor]);
 
   const keepSelection = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -232,7 +353,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
       }
 
       hideTimeoutRef.current = window.setTimeout(() => {
-        if (!controlsHoveredRef.current && !hoveredLayoutRef.current && !columnMenuOpen && !rowMenuOpen) {
+        if (!controlsHoveredRef.current && !hoveredLayoutRef.current && !columnMenuOpenRef.current && !rowMenuOpenRef.current) {
           setLayout(null);
         }
       }, 120);
@@ -272,6 +393,97 @@ export function TableControls({ container, editor }: TableControlsProps) {
     });
   };
 
+  const moveColumn = (direction: -1 | 1) => {
+    const axisInfo = getTableAxisInfo(activeCell);
+
+    if (!axisInfo) {
+      return;
+    }
+
+    const targetIndex = axisInfo.columnIndex + direction;
+
+    if (targetIndex < 0 || targetIndex >= axisInfo.columnCount) {
+      return;
+    }
+
+    selectTableAxis(editor, activeCell, "column");
+    runTableCommand(editor, moveTableColumn({ from: axisInfo.columnIndex, to: targetIndex, select: true }));
+  };
+
+  const moveRow = (direction: -1 | 1) => {
+    const axisInfo = getTableAxisInfo(activeCell);
+
+    if (!axisInfo) {
+      return;
+    }
+
+    const targetIndex = axisInfo.rowIndex + direction;
+
+    if (targetIndex < 0 || targetIndex >= axisInfo.rowCount) {
+      return;
+    }
+
+    selectTableAxis(editor, activeCell, "row");
+    runTableCommand(editor, moveTableRow({ from: axisInfo.rowIndex, to: targetIndex, select: true }));
+  };
+
+  const setAxisColor = (axis: "column" | "row", attr: "backgroundColor" | "textColor", value: string) => {
+    if (!selectTableAxis(editor, activeCell, axis)) {
+      return;
+    }
+
+    runTableCommand(editor, setCellAttr(attr, value || null));
+  };
+
+  const clearAxisContents = (axis: "column" | "row") => {
+    if (!selectTableAxis(editor, activeCell, axis)) {
+      return;
+    }
+
+    runTableCommand(editor, deleteCellSelection);
+  };
+
+  const renderColorSubmenu = (axis: "column" | "row") => (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <PaintBucket className="size-4" /> Color
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
+        <div className="table-control-color-label">Text Color</div>
+        <div className="table-control-color-grid">
+          {tableTextColors.map((color) => (
+            <button
+              key={`${axis}-text-${color.label}`}
+              aria-label={`${color.label} text color`}
+              className="table-control-color-swatch"
+              onClick={() => setAxisColor(axis, "textColor", color.value)}
+              onMouseDown={keepSelection}
+              style={{ color: color.value || "#64748b" }}
+              type="button"
+            >
+              <span>A</span>
+            </button>
+          ))}
+        </div>
+        <div className="table-control-color-label">Background Color</div>
+        <div className="table-control-color-grid">
+          {tableBackgroundColors.map((color) => (
+            <button
+              key={`${axis}-background-${color.label}`}
+              aria-label={`${color.label} background color`}
+              className="table-control-background-swatch"
+              onClick={() => setAxisColor(axis, "backgroundColor", color.value)}
+              onMouseDown={keepSelection}
+              type="button"
+            >
+              <span style={{ background: color.value || "#fff" }} />
+            </button>
+          ))}
+        </div>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+
   if (!layout) {
     return null;
   }
@@ -281,7 +493,15 @@ export function TableControls({ container, editor }: TableControlsProps) {
       <DropdownMenu
         open={columnMenuOpen}
         onOpenChange={(open) => {
+          columnMenuOpenRef.current = open;
           setColumnMenuOpen(open);
+          if (open) {
+            if (hideTimeoutRef.current) {
+              window.clearTimeout(hideTimeoutRef.current);
+              hideTimeoutRef.current = null;
+            }
+            selectTableAxis(editor, activeCell, "column");
+          }
           if (!open && !rowMenuOpen && !hoveredLayoutRef.current) {
             setLayout(null);
           }
@@ -292,7 +512,10 @@ export function TableControls({ container, editor }: TableControlsProps) {
             className="table-control-handle table-control-column"
             onMouseDown={(event) => {
               keepSelection(event);
-              focusCell(editor, activeCell);
+              selectTableAxis(editor, activeCell, "column");
+            }}
+            onClick={() => {
+              selectTableAxis(editor, activeCell, "column");
             }}
             onPointerEnter={handleControlsPointerEnter}
             onPointerLeave={handleControlsPointerLeave}
@@ -303,29 +526,41 @@ export function TableControls({ container, editor }: TableControlsProps) {
             }}
             type="button"
           >
-            <span className="table-control-dots table-control-dots-horizontal" />
+            <Ellipsis className="table-control-dots-icon" strokeWidth={2.2} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="table-control-menu w-56" sideOffset={8}>
+        <DropdownMenuContent align="center" className="table-control-menu w-56" collisionPadding={16} sideOffset={8}>
           {layout.isFirstColumn && (
             <>
-              <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderColumn().run())}>
+              <DropdownMenuItem
+                className={cn(activeColumnIsHeader && "table-control-item-active")}
+                onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderColumn().run())}
+              >
                 <Columns2 className="size-4" /> Header column
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
+          <DropdownMenuItem onClick={() => moveColumn(-1)}>
+            <ArrowLeft className="size-4" /> Move column left
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => moveColumn(1)}>
+            <ArrowRight className="size-4" /> Move column right
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addColumnBefore().run())}>
             <Plus className="size-4" /> Insert column left
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addColumnAfter().run())}>
             <Plus className="size-4" /> Insert column right
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {renderColorSubmenu("column")}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <AlignLeft className="size-4" /> Alignment
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
+            <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
               <DropdownMenuItem className={cn(activeAlign === "left" && "table-control-item-active")} onClick={() => setCellAlign("left")}>
                 <AlignLeft className="size-4" /> Left
               </DropdownMenuItem>
@@ -337,6 +572,9 @@ export function TableControls({ container, editor }: TableControlsProps) {
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem onClick={() => clearAxisContents("column")}>
+            <Eraser className="size-4" /> Clear column contents
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
@@ -350,7 +588,15 @@ export function TableControls({ container, editor }: TableControlsProps) {
       <DropdownMenu
         open={rowMenuOpen}
         onOpenChange={(open) => {
+          rowMenuOpenRef.current = open;
           setRowMenuOpen(open);
+          if (open) {
+            if (hideTimeoutRef.current) {
+              window.clearTimeout(hideTimeoutRef.current);
+              hideTimeoutRef.current = null;
+            }
+            selectTableAxis(editor, activeCell, "row");
+          }
           if (!open && !columnMenuOpen && !hoveredLayoutRef.current) {
             setLayout(null);
           }
@@ -361,40 +607,55 @@ export function TableControls({ container, editor }: TableControlsProps) {
             className="table-control-handle table-control-row"
             onMouseDown={(event) => {
               keepSelection(event);
-              focusCell(editor, activeCell);
+              selectTableAxis(editor, activeCell, "row");
+            }}
+            onClick={() => {
+              selectTableAxis(editor, activeCell, "row");
             }}
             onPointerEnter={handleControlsPointerEnter}
             onPointerLeave={handleControlsPointerLeave}
             style={{
               left: `${layout.leftHandle.left}px`,
               top: `${layout.leftHandle.top}px`,
-              transform: "translateY(-50%)",
+              transform: "translate(-50%, -50%) rotate(90deg)",
             }}
             type="button"
           >
-            <span className="table-control-dots table-control-dots-vertical" />
+            <Ellipsis className="table-control-dots-icon" strokeWidth={2.2} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="table-control-menu w-56" sideOffset={8}>
+        <DropdownMenuContent align="start" className="table-control-menu w-56" collisionPadding={16} sideOffset={8}>
           {layout.isFirstRow && (
             <>
-              <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderRow().run())}>
+              <DropdownMenuItem
+                className={cn(activeRowIsHeader && "table-control-item-active")}
+                onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderRow().run())}
+              >
                 <Rows2 className="size-4" /> Header row
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
+          <DropdownMenuItem onClick={() => moveRow(-1)}>
+            <ArrowUp className="size-4" /> Move row up
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => moveRow(1)}>
+            <ArrowDown className="size-4" /> Move row down
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addRowBefore().run())}>
             <Plus className="size-4" /> Insert row above
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addRowAfter().run())}>
             <Plus className="size-4" /> Insert row below
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {renderColorSubmenu("row")}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <AlignLeft className="size-4" /> Alignment
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-44">
+            <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
               <DropdownMenuItem className={cn(activeAlign === "left" && "table-control-item-active")} onClick={() => setCellAlign("left")}>
                 <AlignLeft className="size-4" /> Left
               </DropdownMenuItem>
@@ -406,6 +667,9 @@ export function TableControls({ container, editor }: TableControlsProps) {
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+          <DropdownMenuItem onClick={() => clearAxisContents("row")}>
+            <Eraser className="size-4" /> Clear row contents
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"

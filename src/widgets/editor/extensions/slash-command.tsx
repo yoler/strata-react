@@ -10,6 +10,8 @@ import { SlashCommandMenu, type SlashCommandItem, type SlashCommandMenuHandle } 
 import { DEFAULT_CODE_BLOCK_LANGUAGE } from "../lib/code-block";
 
 const slashCommandPluginKey = new PluginKey("slash-command-suggestion");
+const SLASH_MENU_OFFSET = 8;
+const SLASH_MENU_VIEWPORT_PADDING = 8;
 
 function getSuggestionItems({
   query,
@@ -22,7 +24,7 @@ function getSuggestionItems({
       title: "Text",
       description: "Just start writing with plain text.",
       icon: Type,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("paragraph").run();
       },
@@ -31,7 +33,7 @@ function getSuggestionItems({
       title: "Heading 1",
       description: "Big section heading.",
       icon: Heading1,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
       },
@@ -40,7 +42,7 @@ function getSuggestionItems({
       title: "Heading 2",
       description: "Medium section heading.",
       icon: Heading2,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
       },
@@ -49,25 +51,16 @@ function getSuggestionItems({
       title: "Heading 3",
       description: "Small section heading.",
       icon: Heading3,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
-      },
-    },
-    {
-      title: "To-do list",
-      description: "Track tasks with a to-do list.",
-      icon: ListTodo,
-      group: "Basic blocks",
-      command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleTaskList().run();
       },
     },
     {
       title: "Bulleted list",
       description: "Create a simple bulleted list.",
       icon: List,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBulletList().run();
       },
@@ -76,43 +69,43 @@ function getSuggestionItems({
       title: "Numbered list",
       description: "Create a list with numbering.",
       icon: ListOrdered,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+      },
+    },
+    {
+      title: "To-do list",
+      description: "Track tasks with a to-do list.",
+      icon: ListTodo,
+      group: "Style",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).toggleTaskList().run();
       },
     },
     {
       title: "Quote",
       description: "Capture a quote.",
       icon: Quote,
-      group: "Basic blocks",
+      group: "Style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBlockquote().run();
       },
     },
     {
-      title: "Divider",
-      description: "Visually divide blocks.",
-      icon: Minus,
-      group: "Basic blocks",
+      title: "Code block",
+      description: "Capture a code snippet.",
+      icon: CodeSquare,
+      group: "Style",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setHorizontalRule().run();
-      },
-    },
-    {
-      title: "Table",
-      description: "Add simple tabular content.",
-      icon: TableIcon,
-      group: "Advanced",
-      command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        editor.chain().focus().deleteRange(range).setNode("codeBlock", { language: DEFAULT_CODE_BLOCK_LANGUAGE }).run();
       },
     },
     {
       title: "Emoji",
       description: "Open the emoji picker.",
       icon: Smile,
-      group: "Advanced",
+      group: "Insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertContent(":").run();
       },
@@ -121,7 +114,7 @@ function getSuggestionItems({
       title: "Image",
       description: "Insert an image upload block.",
       icon: ImageIcon,
-      group: "Advanced",
+      group: "Insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setImageUploadNode().run();
       },
@@ -130,18 +123,27 @@ function getSuggestionItems({
       title: "Video",
       description: "Embed a video from a link.",
       icon: Video,
-      group: "Advanced",
+      group: "Insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setVideoEmbedInput().run();
       },
     },
     {
-      title: "Code block",
-      description: "Capture a code snippet.",
-      icon: CodeSquare,
-      group: "Advanced",
+      title: "Table",
+      description: "Add simple tabular content.",
+      icon: TableIcon,
+      group: "Insert",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setNode("codeBlock", { language: DEFAULT_CODE_BLOCK_LANGUAGE }).run();
+        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      },
+    },
+    {
+      title: "Divider",
+      description: "Visually divide blocks.",
+      icon: Minus,
+      group: "Insert",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).setHorizontalRule().run();
       },
     },
   ];
@@ -169,8 +171,33 @@ const updatePopupPosition = (
     return;
   }
 
-  container.style.left = `${rect.left}px`;
-  container.style.top = `${rect.bottom + 8}px`;
+  const menuElement = container.firstElementChild instanceof HTMLElement ? container.firstElementChild : container;
+  const menuRect = menuElement.getBoundingClientRect();
+  const menuWidth = menuRect.width || 238;
+  const menuHeight = menuRect.height || 360;
+  const viewportRight = window.innerWidth - SLASH_MENU_VIEWPORT_PADDING;
+  const viewportBottom = window.innerHeight - SLASH_MENU_VIEWPORT_PADDING;
+  let left = rect.left;
+  let top = rect.bottom + SLASH_MENU_OFFSET;
+
+  if (left + menuWidth > viewportRight) {
+    left = viewportRight - menuWidth;
+  }
+
+  if (left < SLASH_MENU_VIEWPORT_PADDING) {
+    left = SLASH_MENU_VIEWPORT_PADDING;
+  }
+
+  if (top + menuHeight > viewportBottom) {
+    top = rect.top - menuHeight - SLASH_MENU_OFFSET;
+  }
+
+  if (top < SLASH_MENU_VIEWPORT_PADDING) {
+    top = SLASH_MENU_VIEWPORT_PADDING;
+  }
+
+  container.style.left = `${left}px`;
+  container.style.top = `${top}px`;
 };
 
 function renderItems() {
@@ -195,6 +222,7 @@ function renderItems() {
 
       component.ref?.resetSelection();
       updatePopupPosition(popup, props.clientRect);
+      requestAnimationFrame(() => updatePopupPosition(popup, props.clientRect));
     },
     onUpdate: (props: SuggestionProps<SlashCommandItem>) => {
       component?.updateProps({
@@ -203,6 +231,7 @@ function renderItems() {
       });
       component?.ref?.resetSelection();
       updatePopupPosition(popup, props.clientRect);
+      requestAnimationFrame(() => updatePopupPosition(popup, props.clientRect));
     },
     onKeyDown: (props: SuggestionKeyDownProps) => {
       if (props.event.key === "Escape") {

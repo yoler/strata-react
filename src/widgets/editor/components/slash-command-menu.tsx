@@ -2,7 +2,7 @@ import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import type { LucideIcon } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/shared/ui/command";
+import { Command, CommandEmpty } from "@/shared/ui/command";
 
 export type SlashCommandItem = {
   title: string;
@@ -21,6 +21,8 @@ type SlashCommandMenuProps = {
   command: (item: SlashCommandItem) => void;
   items: SlashCommandItem[];
 };
+
+const groupOrder = ["Style", "Insert"] as const;
 
 export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandMenuProps>(({ command, items }, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -67,7 +69,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
 
   if (!items.length) {
     return (
-      <Command className="tiptap-slash-card w-[238px] border bg-white dark:bg-neutral-950">
+      <Command className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
         <CommandEmpty className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching commands</CommandEmpty>
       </Command>
     );
@@ -82,31 +84,38 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
     return accumulator;
   }, {});
 
+  const orderedGroups = groupOrder
+    .map((group) => [group, groupedItems[group] ?? []] as const)
+    .filter(([, groupItems]) => groupItems.length > 0);
+
   return (
-    <Command className="tiptap-slash-card w-[238px] border bg-white dark:bg-neutral-950">
-      <CommandList className="tiptap-slash-card-body max-h-[340px] p-0">
-        {Object.entries(groupedItems).map(([group, groupItems]) => (
-          <CommandGroup key={group} heading={group} className="mb-0 last:mb-0">
+    <Command className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
+      <div className="tiptap-slash-card-body max-h-[340px]">
+        {orderedGroups.map(([group, groupItems]) => (
+          <div key={group} className="tiptap-slash-card-group">
+            <div className="tiptap-slash-card-group-heading">{group}</div>
             {groupItems.map((item) => {
               const Icon = item.icon;
 
               return (
-                <CommandItem
+                <button
                   key={`${group}-${item.title}`}
+                  aria-selected={item.index === selectedIndex}
                   data-selected={item.index === selectedIndex}
                   onMouseEnter={() => setSelectedIndex(item.index)}
-                  onSelect={() => selectItem(item.index)}
-                  value={item.title}
-                  className="tiptap-slash-card-item items-center gap-1 rounded-xl px-2 py-2"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectItem(item.index)}
+                  className="tiptap-slash-card-item"
+                  type="button"
                 >
-                  <Icon className="text-muted-foreground size-[14px] shrink-0" />
-                  <div className="min-w-0 text-[14px] leading-[16.1px] font-medium tracking-normal">{item.title}</div>
-                </CommandItem>
+                  <Icon className="tiptap-slash-card-item-icon" strokeWidth={1.8} />
+                  <div className="tiptap-slash-card-item-title">{item.title}</div>
+                </button>
               );
             })}
-          </CommandGroup>
+          </div>
         ))}
-      </CommandList>
+      </div>
     </Command>
   );
 });

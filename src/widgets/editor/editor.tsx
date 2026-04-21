@@ -1,26 +1,32 @@
 ﻿import { Color } from "@tiptap/extension-color";
 import FileHandler from "@tiptap/extension-file-handler";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import Highlight from "@tiptap/extension-highlight";
+import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
+import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
+import Underline from "@tiptap/extension-underline";
 import { type Editor, EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { useCallback, useEffect, useRef } from "react";
 
 import { BubbleMenu } from "./components/bubble-menu";
-import { CodeBlockMenu } from "./components/code-block-menu";
 import { DragHandle } from "./components/drag-handle";
 import { ImageMenu } from "./components/image-menu";
 import { TableControls } from "./components/table-controls";
+import { EditorCodeBlock } from "./extensions/code-block-extension";
 import { EmojiNode } from "./extensions/emoji-node";
 import { EmojiSuggestion } from "./extensions/emoji-suggestion";
 import { EditorImage } from "./extensions/image-extension";
 import { createPendingImageUploadBatch, ImageUploadNode } from "./extensions/image-upload-node";
+import { Indent } from "./extensions/indent-extension";
 import { SlashCommand } from "./extensions/slash-command";
 import { EditorTableCell, EditorTableHeader } from "./extensions/table-extensions";
 import { VideoEmbed, VideoEmbedInput } from "./extensions/video-embed";
@@ -64,6 +70,8 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
+        link: false,
+        underline: false,
         dropcursor: {
           color: "rgba(35, 131, 226, 0.4)",
           width: 3,
@@ -90,7 +98,7 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
       }),
       VideoEmbed,
       VideoEmbedInput,
-      CodeBlockLowlight.configure({
+      EditorCodeBlock.configure({
         lowlight,
         defaultLanguage: DEFAULT_CODE_BLOCK_LANGUAGE,
         enableTabIndentation: true,
@@ -110,6 +118,19 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
       }),
       TextStyle,
       Color,
+      Highlight.configure({ multicolor: true }),
+      Underline,
+      Superscript,
+      Subscript,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      Indent,
+      Link.configure({
+        autolink: true,
+        defaultProtocol: "https",
+        openOnClick: false,
+      }),
       Table.configure({
         resizable: true,
         allowTableNodeSelection: true,
@@ -238,7 +259,6 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
   return (
     <div ref={containerRef} className="relative w-full rounded-lg border bg-background text-foreground shadow-sm">
       {!readOnly && <BubbleMenu editor={editor} />}
-      {!readOnly && <CodeBlockMenu container={containerRef.current} editor={editor} />}
       {!readOnly && <ImageMenu editor={editor} />}
       {!readOnly && <TableControls container={containerRef.current} editor={editor} />}
       {!readOnly && <DragHandle editor={editor} />}

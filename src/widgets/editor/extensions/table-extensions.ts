@@ -5,6 +5,34 @@ import { TableHeader } from "@tiptap/extension-table-header";
 type CellTextAlign = "left" | "center" | "right";
 
 const createCellAttributes = () => ({
+  backgroundColor: {
+    default: null as string | null,
+    parseHTML: (element: HTMLElement) => element.getAttribute("data-cell-background-color") ?? element.style.backgroundColor ?? null,
+    renderHTML: (attributes: { backgroundColor?: string | null }) => {
+      if (!attributes.backgroundColor) {
+        return {};
+      }
+
+      return {
+        "data-cell-background-color": attributes.backgroundColor,
+        style: `background-color: ${attributes.backgroundColor};`,
+      };
+    },
+  },
+  textColor: {
+    default: null as string | null,
+    parseHTML: (element: HTMLElement) => element.getAttribute("data-cell-text-color") ?? element.style.color ?? null,
+    renderHTML: (attributes: { textColor?: string | null }) => {
+      if (!attributes.textColor) {
+        return {};
+      }
+
+      return {
+        "data-cell-text-color": attributes.textColor,
+        style: `color: ${attributes.textColor};`,
+      };
+    },
+  },
   textAlign: {
     default: "left" as CellTextAlign,
     parseHTML: (element: HTMLElement) => {
