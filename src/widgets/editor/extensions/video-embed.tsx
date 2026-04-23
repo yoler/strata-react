@@ -1,7 +1,7 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { Link2, Video } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { resolveVideoUrl } from "../lib/video";
 
@@ -10,9 +10,37 @@ declare module "@tiptap/core" {
     videoEmbed: {
       setVideoEmbed: (attrs: { src: string; embedSrc: string; provider: "youtube" | "bilibili" | "file" }) => ReturnType;
       setVideoEmbedInput: () => ReturnType;
+      setVideoAlign: (align: VideoAlign) => ReturnType;
+      fitVideoToWidth: () => ReturnType;
+      resetVideoSize: () => ReturnType;
     };
   }
 }
+
+type VideoAlign = "left" | "center" | "right";
+type VideoProvider = "youtube" | "bilibili" | "file";
+
+const VIDEO_ASPECT_RATIO = 16 / 9;
+const VIDEO_MIN_WIDTH = 240;
+const VIDEO_MIN_HEIGHT = Math.round(VIDEO_MIN_WIDTH / VIDEO_ASPECT_RATIO);
+
+const getVideoContainerMaxWidth = (element: HTMLElement) => {
+  const parentWidth = element.parentElement?.getBoundingClientRect().width ?? 0;
+  const ownWidth = element.getBoundingClientRect().width;
+  const width = parentWidth || ownWidth;
+
+  return width > 0 ? width : Number.POSITIVE_INFINITY;
+};
+
+const constrainVideoSize = (element: HTMLElement, width: number) => {
+  const maxWidth = getVideoContainerMaxWidth(element);
+  const constrainedWidth = Math.round(Math.min(Math.max(width, VIDEO_MIN_WIDTH), maxWidth));
+
+  return {
+    width: constrainedWidth,
+    height: Math.round(Math.max(VIDEO_MIN_HEIGHT, constrainedWidth / VIDEO_ASPECT_RATIO)),
+  };
+};
 
 const replaceWithVideo = ({
   editor,
@@ -101,12 +129,109 @@ const VideoEmbedInputView = ({ editor, getPos }: NodeViewProps) => {
   );
 };
 
-const VideoEmbedView = ({ node }: NodeViewProps) => {
-  const { embedSrc, provider } = node.attrs as { embedSrc: string; provider: "youtube" | "bilibili" | "file"; src: string };
+const VideoEmbedView = ({ node, selected, updateAttributes }: NodeViewProps) => {
+  const { align, embedSrc, height, provider, width } = node.attrs as {
+    align?: VideoAlign;
+    embedSrc: string;
+    height?: number | null;
+    provider: VideoProvider;
+    src: string;
+    width?: number | null;
+  };
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  const draftSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const cleanupResizeRef = useRef<(() => void) | null>(null);
+  const [draftSize, setDraftSize] = useState<{ width: number; height: number } | null>(null);
+
+  const size = draftSize ?? (width ? { width, height: height ?? Math.round(width / VIDEO_ASPECT_RATIO) } : null);
+
+  const handleResizePointerDown = (side: "left" | "right") => (event: React.PointerEvent<HTMLDivElement>) => {
+    const shell = shellRef.current;
+    const handle = event.currentTarget;
+
+    if (!shell) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    cleanupResizeRef.current?.();
+
+    const startX = event.clientX;
+    const startRect = shell.getBoundingClientRect();
+    const startWidth = startRect.width || width || VIDEO_MIN_WIDTH;
+    const overlay = document.createElement("div");
+
+    overlay.className = "video-embed-resize-overlay";
+    document.body.append(overlay);
+
+    try {
+      handle.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture may fail if the browser already released the pointer.
+    }
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const nextWidth = side === "right" ? startWidth + deltaX : startWidth - deltaX;
+      const nextSize = constrainVideoSize(shell, nextWidth);
+
+      draftSizeRef.current = nextSize;
+      setDraftSize(nextSize);
+    };
+
+    const commitResize = () => {
+      cleanupResizeRef.current?.();
+
+      document.removeEventListener("pointermove", handlePointerMove);
+
+      const nextSize = draftSizeRef.current ?? constrainVideoSize(shell, shell.getBoundingClientRect().width);
+      draftSizeRef.current = null;
+      setDraftSize(null);
+      updateAttributes(nextSize);
+    };
+
+    const cancelResize = () => {
+      cleanupResizeRef.current?.();
+      draftSizeRef.current = null;
+      setDraftSize(null);
+    };
+
+    const cleanupResize = () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", commitResize);
+      document.removeEventListener("pointercancel", cancelResize);
+      window.removeEventListener("blur", commitResize);
+      handle.removeEventListener("lostpointercapture", commitResize);
+      overlay.remove();
+      cleanupResizeRef.current = null;
+
+      try {
+        if (handle.hasPointerCapture(event.pointerId)) {
+          handle.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // The pointer can already be released by the browser.
+      }
+    };
+
+    cleanupResizeRef.current = cleanupResize;
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", commitResize);
+    document.addEventListener("pointercancel", cancelResize);
+    window.addEventListener("blur", commitResize);
+    handle.addEventListener("lostpointercapture", commitResize);
+  };
 
   return (
-    <NodeViewWrapper as="div" className="video-embed-node">
-      <div className="video-embed-frame-shell" contentEditable={false}>
+    <NodeViewWrapper as="div" className={`video-embed-node ${selected ? "is-selected" : ""}`} data-align={align ?? "center"}>
+      <div
+        ref={shellRef}
+        className="video-embed-frame-shell"
+        contentEditable={false}
+        style={size ? { width: `${size.width}px`, height: `${size.height}px` } : undefined}
+      >
         {provider === "file" ? (
           <video className="video-embed-frame" controls preload="metadata" src={embedSrc} />
         ) : (
@@ -119,6 +244,8 @@ const VideoEmbedView = ({ node }: NodeViewProps) => {
             title="Embedded video"
           />
         )}
+        <div className="video-embed-resize-handle is-left" data-resize-handle="left" onPointerDown={handleResizePointerDown("left")} />
+        <div className="video-embed-resize-handle is-right" data-resize-handle="right" onPointerDown={handleResizePointerDown("right")} />
       </div>
     </NodeViewWrapper>
   );
@@ -141,6 +268,29 @@ export const VideoEmbed = Node.create({
       },
       provider: {
         default: "youtube",
+      },
+      align: {
+        default: "center",
+        parseHTML: (element) => element.getAttribute("data-align") ?? "center",
+        renderHTML: (attributes) => ({
+          "data-align": attributes.align,
+        }),
+      },
+      width: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-width");
+          return value ? Number.parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => (attributes.width ? { "data-width": attributes.width } : {}),
+      },
+      height: {
+        default: null,
+        parseHTML: (element) => {
+          const value = element.getAttribute("data-height");
+          return value ? Number.parseInt(value, 10) : null;
+        },
+        renderHTML: (attributes) => (attributes.height ? { "data-height": attributes.height } : {}),
       },
     };
   },
@@ -166,6 +316,37 @@ export const VideoEmbed = Node.create({
         () =>
         ({ commands }) =>
           commands.insertContent({ type: "videoEmbedInput" }),
+      setVideoAlign:
+        (align: VideoAlign) =>
+        ({ commands }: { commands: { updateAttributes: (typeOrName: string, attributes: Record<string, unknown>) => boolean } }) =>
+          commands.updateAttributes(this.name, { align }),
+      fitVideoToWidth:
+        () =>
+        ({ commands, editor }: { commands: { updateAttributes: (typeOrName: string, attributes: Record<string, unknown>) => boolean }; editor: { state: { selection: { from: number } }; view: { nodeDOM: (pos: number) => globalThis.Node | null } } }) => {
+          const nodeElement = editor.view.nodeDOM(editor.state.selection.from);
+
+          if (!(nodeElement instanceof HTMLElement)) {
+            return false;
+          }
+
+          const maxWidth = nodeElement.getBoundingClientRect().width;
+
+          if (maxWidth <= 0) {
+            return false;
+          }
+
+          return commands.updateAttributes(this.name, {
+            width: Math.round(maxWidth),
+            height: Math.round(maxWidth / VIDEO_ASPECT_RATIO),
+          });
+        },
+      resetVideoSize:
+        () =>
+        ({ commands }: { commands: { updateAttributes: (typeOrName: string, attributes: Record<string, unknown>) => boolean } }) =>
+          commands.updateAttributes(this.name, {
+            width: null,
+            height: null,
+          }),
     };
   },
 

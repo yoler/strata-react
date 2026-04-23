@@ -48,9 +48,14 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <button className="code-block-copy-button" onClick={handleCopy} type="button">
+        <button
+          aria-label={copied ? "Copied" : "Copy code"}
+          className="code-block-copy-button"
+          onClick={handleCopy}
+          title={copied ? "Copied" : "Copy code"}
+          type="button"
+        >
           {copied ? <CopyCheck className="size-3.5" strokeWidth={1.85} /> : <Copy className="size-3.5" strokeWidth={1.85} />}
-          <span>{copied ? "Copied" : "Copy"}</span>
         </button>
       </div>
       <pre>

@@ -46,6 +46,7 @@ import {
 } from "react";
 
 import { cn } from "@/shared/lib/utils";
+import { getSelectionContainerBlockTarget, replaceContainerBlock, type TurnIntoValue } from "../lib/turn-into";
 
 type EditorBubbleMenuProps = {
   editor: Editor;
@@ -56,7 +57,7 @@ type TurnIntoItem = {
   isActive: boolean;
   label: string;
   run: () => void;
-  value: string;
+  value: TurnIntoValue;
 };
 
 type MenuKind = "turn-into" | "color" | "link" | "more" | null;
@@ -112,7 +113,30 @@ const highlightColors: ColorItem[] = [
   { label: "Red", value: "#fee2e2" },
 ];
 
-const blockedNodeNames = new Set(["imageUpload", "image", "codeBlock", "videoEmbed", "videoEmbedInput"]);
+const blockedNodeNames = new Set([
+  "imageUpload",
+  "image",
+  "codeBlock",
+  "videoEmbed",
+  "videoEmbedInput",
+  "horizontalRule",
+]);
+
+function isSelectionInsideEditor(view: Parameters<NonNullable<ComponentProps<typeof TiptapBubbleMenu>["shouldShow"]>>[0]["view"]) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const browserSelection = window.getSelection();
+  const anchorNode = browserSelection?.anchorNode;
+  const focusNode = browserSelection?.focusNode;
+
+  if (!anchorNode || !focusNode) {
+    return false;
+  }
+
+  return view.dom.contains(anchorNode) && view.dom.contains(focusNode);
+}
 
 function isBlockedSelection(editor: Editor) {
   const { selection } = editor.state;
@@ -126,13 +150,14 @@ function isBlockedSelection(editor: Editor) {
   }
 
   if (selection instanceof NodeSelection) {
-    return blockedNodeNames.has(selection.node.type.name);
+    return true;
   }
 
   if (
     editor.isActive("imageUpload") ||
     editor.isActive("image") ||
     editor.isActive("codeBlock") ||
+    editor.isActive("horizontalRule") ||
     editor.isActive("videoEmbed") ||
     editor.isActive("videoEmbedInput")
   ) {
@@ -225,6 +250,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   const moreRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const linkInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSelectionSettled, setIsSelectionSettled] = useState(true);
   const [openMenu, setOpenMenu] = useState<MenuKind>(null);
   const [menuPosition, setMenuPosition] = useState<MenuPosition>({ left: 0, top: 0 });
   const [linkUrl, setLinkUrl] = useState("");
@@ -245,15 +271,19 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       const { doc, selection } = state;
       const isEmptyTextBlock = !doc.textBetween(from, to).length && selection.empty;
       const isChildOfMenu = element.contains(document.activeElement);
-      const hasEditorFocus = view.hasFocus() || isChildOfMenu;
+      const hasEditorFocus = view.hasFocus() || isChildOfMenu || isSelectionInsideEditor(view);
 
       if (!hasEditorFocus || selection.empty || isEmptyTextBlock || !currentEditor.isEditable) {
         return false;
       }
 
+      if (!isSelectionSettled) {
+        return false;
+      }
+
       return !isBlockedSelection(currentEditor);
     },
-    [],
+    [isSelectionSettled],
   );
 
   const state = useEditorState({
@@ -323,6 +353,63 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   };
 
   useEffect(() => {
+    let editorElement: HTMLElement | null = null;
+    let settleFrame = 0;
+
+    try {
+      editorElement = editor.view.dom;
+    } catch {
+      return;
+    }
+
+    const settleSelection = () => {
+      if (settleFrame) {
+        window.cancelAnimationFrame(settleFrame);
+      }
+
+      settleFrame = window.requestAnimationFrame(() => {
+        setIsSelectionSettled(true);
+      });
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+
+      if (!target || !editorElement?.contains(target)) {
+        return;
+      }
+
+      setIsSelectionSettled(false);
+    };
+
+    const handlePointerUp = () => {
+      settleSelection();
+    };
+
+    const handleSelectionChange = () => {
+      if (!isSelectionInsideEditor(editor.view)) {
+        return;
+      }
+
+      settleSelection();
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("selectionchange", handleSelectionChange);
+
+    return () => {
+      if (settleFrame) {
+        window.cancelAnimationFrame(settleFrame);
+      }
+
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [editor]);
+
+  useEffect(() => {
     if (!openMenu) {
       return;
     }
@@ -374,67 +461,108 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     });
   }, [openMenu]);
 
+  const applyTurnInto = useCallback(
+    (type: TurnIntoValue) => {
+      const containerTarget = getSelectionContainerBlockTarget(editor);
+
+      if (containerTarget && replaceContainerBlock(editor, containerTarget, type)) {
+        return;
+      }
+
+      switch (type) {
+        case "text":
+          editor.chain().focus().setParagraph().run();
+          break;
+        case "heading-1":
+          editor.chain().focus().toggleHeading({ level: 1 }).run();
+          break;
+        case "heading-2":
+          editor.chain().focus().toggleHeading({ level: 2 }).run();
+          break;
+        case "heading-3":
+          editor.chain().focus().toggleHeading({ level: 3 }).run();
+          break;
+        case "bullet-list":
+          editor.chain().focus().toggleBulletList().run();
+          break;
+        case "numbered-list":
+          editor.chain().focus().toggleOrderedList().run();
+          break;
+        case "todo-list":
+          editor.chain().focus().toggleTaskList().run();
+          break;
+        case "quote":
+          editor.chain().focus().toggleBlockquote().run();
+          break;
+        case "code-block":
+          editor.chain().focus().toggleCodeBlock().run();
+          break;
+      }
+    },
+    [editor],
+  );
+
   const turnIntoItems: TurnIntoItem[] = useMemo(
     () => [
       {
         icon: Pilcrow,
         isActive: state.blockLabel === "Text",
         label: "Text",
-        run: () => editor.chain().focus().setParagraph().run(),
+        run: () => applyTurnInto("text"),
         value: "text",
       },
       {
         icon: Heading1,
         isActive: state.isHeading1,
         label: "Heading 1",
-        run: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        run: () => applyTurnInto("heading-1"),
         value: "heading-1",
       },
       {
         icon: Heading2,
         isActive: state.isHeading2,
         label: "Heading 2",
-        run: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        run: () => applyTurnInto("heading-2"),
         value: "heading-2",
       },
       {
         icon: Heading3,
         isActive: state.isHeading3,
         label: "Heading 3",
-        run: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        run: () => applyTurnInto("heading-3"),
         value: "heading-3",
       },
       {
         icon: List,
         isActive: state.isBulletList,
         label: "Bullet list",
-        run: () => editor.chain().focus().toggleBulletList().run(),
+        run: () => applyTurnInto("bullet-list"),
         value: "bullet-list",
       },
       {
         icon: ListOrdered,
         isActive: state.isOrderedList,
         label: "Numbered list",
-        run: () => editor.chain().focus().toggleOrderedList().run(),
+        run: () => applyTurnInto("numbered-list"),
         value: "numbered-list",
       },
       {
         icon: ListTodo,
         isActive: state.isTaskList,
         label: "To-do list",
-        run: () => editor.chain().focus().toggleTaskList().run(),
+        run: () => applyTurnInto("todo-list"),
         value: "todo-list",
       },
       {
         icon: Quote,
         isActive: state.isBlockquote,
         label: "Quote",
-        run: () => editor.chain().focus().toggleBlockquote().run(),
+        run: () => applyTurnInto("quote"),
         value: "quote",
       },
     ],
     [
-      editor,
+      applyTurnInto,
       state.blockLabel,
       state.isBlockquote,
       state.isBulletList,
@@ -455,8 +583,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     const trimmedUrl = linkUrl.trim();
 
     if (!trimmedUrl) {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      setOpenMenu(null);
+      linkInputRef.current?.focus();
       return;
     }
 
@@ -822,7 +949,6 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <button
                   aria-label="Apply link"
                   className="text-bubble-link-action"
-                  data-tooltip="Apply link"
                   onMouseDown={keepSelection}
                   onClick={applyLink}
                   type="button"
@@ -832,7 +958,6 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <button
                   aria-label="Open link"
                   className="text-bubble-link-action"
-                  data-tooltip="Open link"
                   disabled={!linkUrl.trim() && !state.isLink}
                   onMouseDown={keepSelection}
                   onClick={openCurrentLink}
@@ -843,7 +968,6 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <button
                   aria-label="Remove link"
                   className="text-bubble-link-action"
-                  data-tooltip="Remove link"
                   disabled={!state.isLink}
                   onMouseDown={keepSelection}
                   onClick={removeLink}

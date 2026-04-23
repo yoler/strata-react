@@ -1,6 +1,6 @@
 /* src/widgets/editor/styles.css */
 .ProseMirror {
-  --tt-selection-color: rgba(35, 131, 226, 0.18);
+  --tt-selection-color: #e2e2f7;
   --tt-cursor-color: #3b82f6;
   --placeholder-color: rgba(115, 115, 115, 0.55);
   --link-text-color: #4f46e5;
@@ -13,7 +13,7 @@
 }
 
 .dark .ProseMirror {
-  --tt-selection-color: rgba(35, 131, 226, 0.24);
+  --tt-selection-color: #e2e2f7;
   --tt-cursor-color: #60a5fa;
   --placeholder-color: rgba(255, 255, 255, 0.32);
   --tt-checklist-bg-color: rgba(255, 255, 255, 0.06);
@@ -66,6 +66,54 @@
 .tiptap.ProseMirror .selection {
   background-color: var(--tt-selection-color);
   display: inline;
+}
+
+.tiptap.ProseMirror p.ProseMirror-selectednode,
+.tiptap.ProseMirror h1.ProseMirror-selectednode,
+.tiptap.ProseMirror h2.ProseMirror-selectednode,
+.tiptap.ProseMirror h3.ProseMirror-selectednode,
+.tiptap.ProseMirror h4.ProseMirror-selectednode,
+.tiptap.ProseMirror h5.ProseMirror-selectednode,
+.tiptap.ProseMirror h6.ProseMirror-selectednode,
+.tiptap.ProseMirror pre.ProseMirror-selectednode,
+.tiptap.ProseMirror ul.ProseMirror-selectednode,
+.tiptap.ProseMirror ol.ProseMirror-selectednode,
+.tiptap.ProseMirror li.ProseMirror-selectednode {
+  background-color: var(--tt-selection-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.tiptap.ProseMirror p[data-block-background-color],
+.tiptap.ProseMirror h1[data-block-background-color],
+.tiptap.ProseMirror h2[data-block-background-color],
+.tiptap.ProseMirror h3[data-block-background-color],
+.tiptap.ProseMirror h4[data-block-background-color],
+.tiptap.ProseMirror h5[data-block-background-color],
+.tiptap.ProseMirror h6[data-block-background-color],
+.tiptap.ProseMirror blockquote[data-block-background-color],
+.tiptap.ProseMirror pre[data-block-background-color],
+.tiptap.ProseMirror ul[data-block-background-color],
+.tiptap.ProseMirror ol[data-block-background-color],
+.tiptap.ProseMirror li[data-block-background-color] {
+  background-color: var(--tt-block-background-color);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.tiptap.ProseMirror p[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h1[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h2[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h3[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h4[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h5[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror h6[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror pre[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror ul[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror ol[data-block-background-color].ProseMirror-selectednode,
+.tiptap.ProseMirror li[data-block-background-color].ProseMirror-selectednode {
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 
 .tiptap.ProseMirror .is-empty[data-placeholder]:has(>.ProseMirror-trailingBreak:only-child)::before,
@@ -262,6 +310,7 @@
 }
 
 .image-bubble-menu-button {
+  position: relative;
   width: 2rem;
   height: 2rem;
   border: 0;
@@ -281,6 +330,10 @@
 .image-bubble-menu-button.is-active {
   background: rgba(15, 23, 42, 0.08);
   color: rgba(36, 39, 46, 0.96);
+}
+
+.image-bubble-menu {
+  overflow: visible;
 }
 
 .dark .image-bubble-menu-button {
@@ -356,6 +409,7 @@
 
 .tiptap-button[data-tooltip]::before,
 .text-bubble-more-button[data-tooltip]::before,
+.image-bubble-menu-button[data-tooltip]::before,
 .text-bubble-link-action[data-tooltip]::before {
   content: attr(data-tooltip);
   position: absolute;
@@ -383,6 +437,8 @@
 .tiptap-button[data-tooltip]:focus-visible::before,
 .text-bubble-more-button[data-tooltip]:hover::before,
 .text-bubble-more-button[data-tooltip]:focus-visible::before,
+.image-bubble-menu-button[data-tooltip]:hover::before,
+.image-bubble-menu-button[data-tooltip]:focus-visible::before,
 .text-bubble-link-action[data-tooltip]:hover::before,
 .text-bubble-link-action[data-tooltip]:focus-visible::before {
   transform: translate(-50%, 0);
@@ -798,10 +854,20 @@
   font-style: inherit;
 }
 
+.tiptap.ProseMirror blockquote.ProseMirror-selectednode {
+  background-color: var(--tt-selection-color);
+  border-radius: 0.5rem;
+}
+
+.tiptap.ProseMirror blockquote[data-block-background-color].ProseMirror-selectednode {
+  border-radius: 0.5rem;
+}
+
 .tiptap.ProseMirror blockquote p {
   margin-top: 0;
   color: inherit;
   font-style: inherit;
+  font-weight: 400;
 }
 
 .tiptap.ProseMirror blockquote p::before,
@@ -824,14 +890,26 @@
 .tiptap.ProseMirror hr {
   background-color: var(--horizontal-rule-color);
   border: none;
+  width: 100%;
+  flex: 1 1 auto;
   height: 1px;
-  margin-top: 2.25em;
-  margin-bottom: 2.25em;
+  margin: 0;
+  display: block;
 }
 
 .tiptap.ProseMirror [data-type="horizontalRule"] {
+  display: flex;
+  align-items: center;
+  margin-top: 2.25em;
+  margin-bottom: 2.25em;
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.tiptap.ProseMirror [data-type="horizontalRule"].ProseMirror-selectednode {
+  background: var(--tt-selection-color);
 }
 
 .ProseMirror pre {
@@ -889,6 +967,7 @@
 }
 
 .code-block-node {
+  position: relative;
   margin: 1.25rem 0;
   border-radius: 0.75rem;
   background: #1e1e1e;
@@ -900,62 +979,72 @@
 
 .code-block-node pre {
   margin: 0;
-  padding: 0.65rem 1.125rem 1rem;
+  padding: 2rem 1.125rem 2rem;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
 .code-block-header {
-  min-height: 2.25rem;
-  padding: 0.55rem 0.75rem 0.15rem;
+  position: absolute;
+  top: 0.5rem;
+  left: 0.625rem;
+  right: 0.625rem;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  pointer-events: none;
 }
 
 .code-block-language-trigger {
-  height: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.45rem;
-  background: rgba(37, 37, 38, 0.78);
-  color: rgba(212, 212, 212, 0.86);
-  padding: 0 0.4rem 0 0.55rem;
+  height: 1.3rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(212, 212, 212, 0.72);
+  padding: 0 0.25rem 0 0.35rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.125rem;
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 500;
   line-height: 1;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  pointer-events: auto;
   cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .code-block-language-trigger:hover {
-  background: rgba(44, 44, 46, 0.94);
-  color: rgba(212, 212, 212, 0.96);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(212, 212, 212, 0.94);
 }
 
 .code-block-language-content {
-  min-width: 10rem;
-  border-radius: var(--editor-menu-radius);
+  min-width: 8.5rem;
+  border-radius: 0.625rem;
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(30, 30, 30, 0.98);
   color: rgba(212, 212, 212, 0.92);
-  padding: 0.25rem;
-  box-shadow: var(--editor-menu-shadow);
+  padding: 0.2rem;
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.24),
+    0 2px 8px rgba(15, 23, 42, 0.18);
 }
 
 .code-block-language-item {
-  min-height: 1.8rem;
-  border-radius: 0.5rem;
+  min-height: 1.55rem;
+  border-radius: 0.4rem;
   color: rgba(212, 212, 212, 0.86);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 500;
-  padding: 0.35rem 0.55rem;
+  padding: 0.22rem 0.45rem;
+  cursor: pointer;
 }
 
 .code-block-language-item[data-highlighted] {
@@ -964,27 +1053,25 @@
 }
 
 .code-block-copy-button {
-  height: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.45rem;
-  background: rgba(37, 37, 38, 0.78);
-  color: rgba(212, 212, 212, 0.86);
-  padding: 0 0.5rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(212, 212, 212, 0.72);
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  justify-content: center;
   cursor: pointer;
   pointer-events: auto;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .code-block-copy-button:hover {
-  background: rgba(44, 44, 46, 0.94);
-  color: rgba(212, 212, 212, 0.96);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(212, 212, 212, 0.94);
 }
 
 .ProseMirror pre .hljs-comment,
@@ -1153,6 +1240,11 @@
 
 .tiptap.ProseMirror table .selectedCell {
   position: relative;
+  z-index: 2;
+  --tt-table-selection-top: 2px;
+  --tt-table-selection-right: 2px;
+  --tt-table-selection-bottom: 2px;
+  --tt-table-selection-left: 2px;
   background: rgba(109, 40, 217, 0.08);
 }
 
@@ -1161,9 +1253,28 @@
   pointer-events: none;
   position: absolute;
   inset: -1px;
-  z-index: 1;
-  border: 1px solid rgba(109, 40, 217, 0.84);
-  background: rgba(109, 40, 217, 0.06);
+  z-index: 10;
+  background:
+    linear-gradient(rgba(109, 40, 217, 0.9), rgba(109, 40, 217, 0.9)) top left / 100% var(--tt-table-selection-top) no-repeat,
+    linear-gradient(rgba(109, 40, 217, 0.9), rgba(109, 40, 217, 0.9)) top right / var(--tt-table-selection-right) 100% no-repeat,
+    linear-gradient(rgba(109, 40, 217, 0.9), rgba(109, 40, 217, 0.9)) bottom left / 100% var(--tt-table-selection-bottom) no-repeat,
+    linear-gradient(rgba(109, 40, 217, 0.9), rgba(109, 40, 217, 0.9)) top left / var(--tt-table-selection-left) 100% no-repeat;
+}
+
+.tiptap.ProseMirror table .selectedCell:has(+ .selectedCell) {
+  --tt-table-selection-right: 0px;
+}
+
+.tiptap.ProseMirror table .selectedCell+.selectedCell {
+  --tt-table-selection-left: 0px;
+}
+
+.tiptap.ProseMirror table tr:has(.selectedCell):has(+ tr .selectedCell) .selectedCell {
+  --tt-table-selection-bottom: 0px;
+}
+
+.tiptap.ProseMirror table tr:has(.selectedCell)+tr:has(.selectedCell) .selectedCell {
+  --tt-table-selection-top: 0px;
 }
 
 .table-control-handle,
@@ -1189,7 +1300,7 @@
 }
 
 .table-control-row {
-  width: 2.5rem;
+  width: 2rem;
   height: 10px;
   border-radius: 9999px;
 }
@@ -1262,6 +1373,17 @@
   padding: 0.375rem;
   background-clip: padding-box;
   box-shadow: var(--editor-menu-shadow);
+  overflow: visible;
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  will-change: transform, opacity;
+}
+
+.table-control-menu[data-state="open"] {
+  animation: editor-menu-scale-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.table-control-menu[data-state="closed"] {
+  animation: editor-menu-scale-out 90ms ease-in;
 }
 
 .table-control-submenu {
@@ -1357,11 +1479,18 @@
 }
 
 .table-control-menu [role="menuitem"]:focus,
-.table-control-menu [role="menuitem"][data-highlighted],
+.table-control-menu [role="menuitem"][data-state="open"],
+.table-control-menu [role="menuitem"]:hover,
 .table-control-menu [data-radix-collection-item]:focus,
-.table-control-menu [data-radix-collection-item][data-highlighted] {
+.table-control-menu [data-radix-collection-item][data-state="open"],
+.table-control-menu [data-radix-collection-item]:hover {
   background: rgba(15, 23, 42, 0.06);
   color: rgb(24, 31, 54);
+}
+
+.table-control-menu [data-radix-collection-item][data-highlighted]:not([data-state="open"]):not(:hover) {
+  background: transparent;
+  color: rgb(39, 46, 78);
 }
 
 .table-control-menu svg {
@@ -1394,6 +1523,30 @@
 .table-control-item-active {
   background: rgba(15, 23, 42, 0.06);
   color: rgb(24, 31, 54);
+}
+
+@keyframes editor-menu-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes editor-menu-scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
 }
 
 ul[data-type="taskList"] {
@@ -1859,8 +2012,11 @@ ul[data-type="taskList"] li>div {
 }
 
 .tiptap.ProseMirror [data-type="emoji"] {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
+  vertical-align: -0.25em;
 }
 
 .tiptap.ProseMirror [data-type="emoji"] img {
@@ -1868,7 +2024,7 @@ ul[data-type="taskList"] li>div {
   cursor: text;
   width: 1.25em;
   height: 1.25em;
-  display: inline-block;
+  display: block;
   object-fit: contain;
   pointer-events: none;
 }
@@ -2175,6 +2331,25 @@ ul[data-type="taskList"] li>div {
   margin: 1.5rem 0;
 }
 
+.tiptap.ProseMirror .video-embed-node {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="left"] {
+  justify-content: flex-start;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="center"] {
+  justify-content: center;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="right"] {
+  justify-content: flex-end;
+}
+
 .tiptap.ProseMirror .video-embed-input-card {
   border: 1.5px dashed rgba(99, 102, 241, 0.65);
   border-radius: 1rem;
@@ -2288,6 +2463,8 @@ ul[data-type="taskList"] li>div {
 .tiptap.ProseMirror .video-embed-frame-shell {
   width: 100%;
   max-width: 48rem;
+  position: relative;
+  aspect-ratio: 16 / 9;
   border-radius: 1rem;
   overflow: hidden;
   background:
@@ -2301,29 +2478,67 @@ ul[data-type="taskList"] li>div {
 
 .tiptap.ProseMirror .video-embed-frame {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   border: 0;
   display: block;
   background: transparent;
 }
 
+.tiptap.ProseMirror .video-embed-frame-shell:hover,
+.tiptap.ProseMirror .video-embed-node.is-selected .video-embed-frame-shell {
+  outline: 2px solid #6d28d9;
+  outline-offset: 0;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 5px;
+  height: 50px;
+  border-radius: 9999px;
+  background: #6d28d9;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 140ms ease;
+  cursor: ew-resize;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle.is-left {
+  left: 2px;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle.is-right {
+  right: 2px;
+}
+
+.tiptap.ProseMirror .video-embed-frame-shell:hover .video-embed-resize-handle,
+.tiptap.ProseMirror .video-embed-node.is-selected .video-embed-resize-handle {
+  opacity: 1;
+}
+
+.video-embed-resize-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  cursor: ew-resize;
+  background: transparent;
+}
+
 .drag-handle-shell {
-  transition:
-    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 140ms ease,
-    left 140ms cubic-bezier(0.16, 1, 0.3, 1),
-    top 140ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, left, top, opacity;
-  transform: translateY(-3px);
+  transform: translate3d(0, -3px, 0);
+  transition-property: top;
+  transition-duration: .2s;
+  transition-timing-function: ease-out;
 }
 
 .drag-handle-buttons {
-  transform: translate(-12px, var(--drag-handle-offset-y, 0px));
+  transform: translateX(-12px);
   padding-top: 1px;
 }
 
 .drag-handle-action {
-  color: #9b9a97;
+  color: #24272ec7;
   background: transparent;
   border-radius: 9999px;
   transition:
@@ -2351,7 +2566,7 @@ ul[data-type="taskList"] li>div {
 }
 
 .drag-handle-grip {
-  color: #a7a6a2;
+  color: #24272ec7;
 }
 
 .drag-handle-grip:hover {

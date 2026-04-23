@@ -14,16 +14,17 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import { type Editor, EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 import { BubbleMenu } from "./components/bubble-menu";
 import { DragHandle } from "./components/drag-handle";
 import { ImageMenu } from "./components/image-menu";
 import { TableControls } from "./components/table-controls";
+import { BlockStyle } from "./extensions/block-style-extension";
 import { EditorCodeBlock } from "./extensions/code-block-extension";
 import { EmojiNode } from "./extensions/emoji-node";
 import { EmojiSuggestion } from "./extensions/emoji-suggestion";
+import { EditorHorizontalRule } from "./extensions/horizontal-rule";
 import { EditorImage } from "./extensions/image-extension";
 import { createPendingImageUploadBatch, ImageUploadNode } from "./extensions/image-upload-node";
 import { Indent } from "./extensions/indent-extension";
@@ -32,44 +33,16 @@ import { EditorTableCell, EditorTableHeader } from "./extensions/table-extension
 import { VideoEmbed, VideoEmbedInput } from "./extensions/video-embed";
 import { DEFAULT_CODE_BLOCK_LANGUAGE, detectCodeBlockLanguage, lowlight } from "./lib/code-block";
 import "./styles.css";
-import type { NotionEditorProps, UploadImageOptions } from "./types";
+import type { NotionEditorProps } from "./types";
 
 export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }: NotionEditorProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const handleUpload = useCallback(
-    async (file: File, editor: Editor, pos?: number, options?: UploadImageOptions) => {
-      if (!uploadImage) return;
-
-      try {
-        const url = await uploadImage(file, options);
-
-        if (!url) return;
-
-        if (pos !== undefined) {
-          editor
-            .chain()
-            .focus()
-            .insertContentAt(pos, {
-              type: "image",
-              attrs: { src: url },
-            })
-            .run();
-          return;
-        }
-
-        editor.chain().focus().setImage({ src: url }).run();
-      } catch (error) {
-        console.error("Image upload failed", error);
-      }
-    },
-    [uploadImage],
-  );
-
+  const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
+        horizontalRule: false,
         link: false,
         underline: false,
         dropcursor: {
@@ -77,6 +50,7 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
           width: 3,
         },
       }),
+      EditorHorizontalRule,
       Placeholder.configure({
         placeholder: () => "Write, type '/' for commands...",
         emptyNodeClass: "is-empty",
@@ -113,12 +87,22 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
       FileHandler.configure({
         allowedMimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
         onPaste: (currentEditor, files) => {
-          files.forEach((file) => handleUpload(file, currentEditor));
+          const uploadBatchId = createPendingImageUploadBatch(files);
+
+          currentEditor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "imageUpload",
+              attrs: { uploadBatchId },
+            })
+            .run();
         },
       }),
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
+      BlockStyle,
       Underline,
       Superscript,
       Subscript,
@@ -257,10 +241,10 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
   }
 
   return (
-    <div ref={containerRef} className="relative w-full rounded-lg border bg-background text-foreground shadow-sm">
+    <div ref={setContainerElement} className="relative w-full rounded-lg border bg-background text-foreground shadow-sm">
       {!readOnly && <BubbleMenu editor={editor} />}
       {!readOnly && <ImageMenu editor={editor} />}
-      {!readOnly && <TableControls container={containerRef.current} editor={editor} />}
+      {!readOnly && <TableControls container={containerElement} editor={editor} />}
       {!readOnly && <DragHandle editor={editor} />}
       <EditorContent editor={editor} />
     </div>

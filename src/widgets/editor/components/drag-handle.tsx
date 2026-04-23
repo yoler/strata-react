@@ -1,10 +1,9 @@
 ﻿import type { Editor } from "@tiptap/core";
 import { DragHandle as TiptapDragHandle } from "@tiptap/extension-drag-handle-react";
-import { TextSelection, type Command } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection, type Command } from "@tiptap/pm/state";
 import { CellSelection, deleteCellSelection, setCellAttr, TableMap } from "@tiptap/pm/tables";
 import { AlignCenter, AlignLeft, AlignRight, Code, Copy, Download, Eraser, GripVertical, Heading1, Heading2, Heading3, List, ListOrdered, ListTodo, Maximize2, PaintBucket, Pilcrow, Plus, Quote, Repeat, RotateCcw, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   DropdownMenu,
@@ -16,6 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
+import { isContainerBlockKind, replaceContainerBlock, type TurnIntoValue } from "../lib/turn-into";
 
 type ColorItem = {
   label: string;
@@ -41,6 +41,8 @@ type MenuTarget = {
   node: NonNullable<ReturnType<Editor["state"]["doc"]["nodeAt"]>>;
   pos: number;
 };
+
+type OpenSubMenu = "block-color" | "block-turn-into" | "table-alignment" | "table-color" | null;
 
 const tableTextColors: ColorItem[] = [
   { label: "Default", value: "" },
@@ -106,25 +108,84 @@ const turnIntoItems = [
   { label: "Code block", value: "code-block", icon: Code },
 ] as const;
 
+const menuTitleMap: Record<MenuNodeKind, string> = {
+  text: "Text",
+  heading: "Heading",
+  blockquote: "Blockquote",
+  bulletList: "Bullet list",
+  orderedList: "Numbered list",
+  taskList: "To-do list",
+  codeBlock: "Code Block",
+  image: "Image",
+  imageUpload: "Image",
+  video: "Video",
+  divider: "Separator",
+  table: "Table",
+};
+
 export function DragHandle({ editor }: { editor: Editor }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState<OpenSubMenu>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dividerOffsetY, setDividerOffsetY] = useState(0);
+  const [currentTargetState, setCurrentTargetState] = useState<MenuTarget | null>(null);
   const startPosRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
+  const isGripPressingRef = useRef(false);
   const currentNodePosRef = useRef<number>(-1);
-  const buttonsRef = useRef<HTMLDivElement | null>(null);
+  const currentNodeRef = useRef<NonNullable<ReturnType<Editor["state"]["doc"]["nodeAt"]>> | null>(null);
+
+  const releaseEditorFocusForModalMenu = useCallback(() => {
+    const activeElement = document.activeElement;
+
+    if (!(activeElement instanceof HTMLElement)) {
+      return;
+    }
+
+    try {
+      if (editor.view.dom.contains(activeElement)) {
+        activeElement.blur();
+      }
+    } catch {
+      // The editor can be temporarily unavailable during teardown; focus cleanup is best-effort.
+    }
+  }, [editor]);
+
+  const setMenuVisibility = (open: boolean) => {
+    if (open) {
+      releaseEditorFocusForModalMenu();
+    }
+
+    if (!open) {
+      setOpenSubMenu(null);
+    }
+
+    if (!open) {
+      if (isGripPressingRef.current) {
+        setMenuOpen(false);
+        return;
+      }
+
+      const current = getCurrentTarget();
+      const { doc, selection, tr } = editor.state;
+
+      if (selection instanceof CellSelection && current?.kind === "table") {
+        const map = TableMap.get(current.node);
+        const firstCell = current.pos + 1 + map.map[0];
+        editor.view.dispatch(tr.setSelection(TextSelection.near(doc.resolve(firstCell + 1), 1)));
+      } else if (selection instanceof NodeSelection && current) {
+        const afterPos = Math.min(current.pos + current.node.nodeSize, doc.content.size);
+        editor.view.dispatch(tr.setSelection(TextSelection.near(doc.resolve(afterPos), 1)));
+      }
+    }
+
+    setMenuOpen(open);
+  };
 
   const getCurrentNode = () => {
     const pos = currentNodePosRef.current;
+    const node = currentNodeRef.current;
 
-    if (pos < 0) {
-      return null;
-    }
-
-    const node = editor.state.doc.nodeAt(pos);
-
-    if (!node) {
+    if (pos < 0 || !node) {
       return null;
     }
 
@@ -187,6 +248,25 @@ export function DragHandle({ editor }: { editor: Editor }) {
     return current;
   };
 
+  const getTargetFocusPos = (target: MenuTarget) => {
+    if (target.node.isTextblock) {
+      return target.pos + 1;
+    }
+
+    let focusPos: number | null = null;
+
+    target.node.descendants((node, pos) => {
+      if (!node.isTextblock) {
+        return true;
+      }
+
+      focusPos = target.pos + 1 + pos + 1;
+      return false;
+    });
+
+    return focusPos ?? Math.min(target.pos + 1, editor.state.doc.content.size);
+  };
+
   const selectWholeTable = () => {
     const table = getCurrentTable();
 
@@ -212,36 +292,63 @@ export function DragHandle({ editor }: { editor: Editor }) {
     return didRun;
   };
 
-  const focusCurrentNode = () => {
-    const current = getCurrentTarget();
-
-    if (!current) {
-      return false;
-    }
-
-    const focusPos = current.node.isTextblock ? current.pos + 1 : current.pos;
-    editor.chain().focus(focusPos).run();
-    return true;
-  };
-
-  const selectTargetContent = () => {
+  const selectCurrentBlock = () => {
     const target = getCurrentTarget();
 
     if (!target) {
-      return null;
+      return false;
     }
 
-    const from = target.pos + 1;
-    const to = target.pos + target.node.nodeSize - 1;
-
-    if (to <= from) {
-      editor.chain().focus(from).run();
-      return { target, from, to: from };
-    }
-
-    editor.view.dispatch(editor.state.tr.setSelection(TextSelection.create(editor.state.doc, from, to)));
+    editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, target.pos)));
     editor.view.focus();
-    return { target, from, to };
+    return true;
+  };
+
+  const getTargetTextRanges = (target: MenuTarget) => {
+    const ranges: Array<{ from: number; to: number }> = [];
+
+    target.node.descendants((node, pos) => {
+      if (!node.isText) {
+        return true;
+      }
+
+      const from = target.pos + 1 + pos;
+      ranges.push({ from, to: from + node.nodeSize });
+      return false;
+    });
+
+    return ranges;
+  };
+
+  const unsetTargetBlockBackground = (target: MenuTarget, transaction = editor.state.tr) => {
+    if ("blockBackgroundColor" in target.node.attrs) {
+      transaction.setNodeMarkup(target.pos, undefined, {
+        ...target.node.attrs,
+        blockBackgroundColor: null,
+      });
+    }
+
+    target.node.descendants((node, pos) => {
+      if (!("blockBackgroundColor" in node.attrs)) {
+        return true;
+      }
+
+      transaction.setNodeMarkup(target.pos + 1 + pos, undefined, {
+        ...node.attrs,
+        blockBackgroundColor: null,
+      });
+      return true;
+    });
+
+    return transaction;
+  };
+
+  const dispatchTargetTransaction = (transaction: typeof editor.state.tr) => {
+    if (transaction.docChanged) {
+      editor.view.dispatch(transaction);
+    }
+
+    editor.view.focus();
   };
 
   const handleAddBlock = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -291,8 +398,15 @@ export function DragHandle({ editor }: { editor: Editor }) {
   };
 
   const handleGripPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    isGripPressingRef.current = true;
     isDraggingRef.current = false;
     startPosRef.current = { x: event.clientX, y: event.clientY };
+
+    if (getCurrentTarget()?.kind === "table") {
+      selectWholeTable();
+    } else {
+      selectCurrentBlock();
+    }
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const dx = moveEvent.clientX - startPosRef.current.x;
@@ -306,10 +420,12 @@ export function DragHandle({ editor }: { editor: Editor }) {
     const handlePointerUp = () => {
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
+      isGripPressingRef.current = false;
 
       if (!isDraggingRef.current) {
-        selectWholeTable();
-        setMenuOpen(true);
+        setMenuVisibility(true);
+      } else {
+        setMenuVisibility(false);
       }
     };
 
@@ -329,7 +445,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
       .focus()
       .deleteRange({ from: current.pos, to: current.pos + current.node.nodeSize })
       .run();
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
   const duplicateNode = () => {
@@ -344,92 +460,122 @@ export function DragHandle({ editor }: { editor: Editor }) {
       .focus()
       .insertContentAt(current.pos + current.node.nodeSize, current.node.toJSON())
       .run();
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
-  const turnInto = (type: (typeof turnIntoItems)[number]["value"]) => {
-    const selection = selectTargetContent();
+  const turnInto = (type: TurnIntoValue) => {
+    const target = getCurrentTarget();
 
-    if (!selection) {
+    if (!target) {
       return;
     }
 
+    if (isContainerBlockKind(target.kind)) {
+      if (
+        replaceContainerBlock(editor, {
+          kind: target.kind,
+          node: target.node,
+          pos: target.pos,
+        }, type)
+      ) {
+        setMenuVisibility(false);
+        return;
+      }
+    }
+
+    const chain = editor.chain().focus(getTargetFocusPos(target)).clearNodes();
+
     switch (type) {
       case "text":
-        editor.chain().focus().setParagraph().run();
+        chain.setParagraph().run();
         break;
       case "heading-1":
-        editor.chain().focus().toggleHeading({ level: 1 }).run();
+        chain.setHeading({ level: 1 }).run();
         break;
       case "heading-2":
-        editor.chain().focus().toggleHeading({ level: 2 }).run();
+        chain.setHeading({ level: 2 }).run();
         break;
       case "heading-3":
-        editor.chain().focus().toggleHeading({ level: 3 }).run();
+        chain.setHeading({ level: 3 }).run();
         break;
       case "bullet-list":
-        editor.chain().focus().toggleBulletList().run();
+        chain.wrapInList("bulletList").run();
         break;
       case "numbered-list":
-        editor.chain().focus().toggleOrderedList().run();
+        chain.wrapInList("orderedList").run();
         break;
       case "todo-list":
-        editor.chain().focus().toggleTaskList().run();
+        chain.toggleTaskList().run();
         break;
       case "quote":
-        editor.chain().focus().toggleBlockquote().run();
+        chain.setBlockquote().run();
         break;
       case "code-block":
-        editor.chain().focus().setNode("codeBlock").run();
+        chain.setCodeBlock().run();
         break;
       default:
         break;
     }
 
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
   const setBlockTextColor = (color?: string) => {
-    const selection = selectTargetContent();
+    const target = getCurrentTarget();
 
-    if (!selection) {
+    if (!target) {
       return;
     }
 
-    if (color) {
-      editor.chain().focus().setColor(color).run();
-    } else {
-      editor.chain().focus().unsetColor().run();
+    const textStyleMark = editor.state.schema.marks.textStyle;
+
+    if (!textStyleMark) {
+      setMenuVisibility(false);
+      return;
     }
 
-    setMenuOpen(false);
+    const tr = editor.state.tr;
+    getTargetTextRanges(target).forEach(({ from, to }) => {
+      tr.removeMark(from, to, textStyleMark);
+
+      if (color) {
+        tr.addMark(from, to, textStyleMark.create({ color }));
+      }
+    });
+
+    dispatchTargetTransaction(tr);
+    setMenuVisibility(false);
   };
 
   const setBlockHighlightColor = (color?: string) => {
-    const selection = selectTargetContent();
+    const target = getCurrentTarget();
 
-    if (!selection) {
+    if (!target) {
       return;
     }
 
-    if (color) {
-      editor.chain().focus().setHighlight({ color }).run();
-    } else {
-      editor.chain().focus().unsetHighlight().run();
-    }
+    editor
+      .chain()
+      .focus(getTargetFocusPos(target))
+      .setBlockBackgroundColor(color)
+      .run();
 
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
   const resetFormatting = () => {
-    const selection = selectTargetContent();
+    const target = getCurrentTarget();
 
-    if (!selection) {
+    if (!target) {
       return;
     }
 
-    editor.chain().focus().unsetAllMarks().clearNodes().run();
-    setMenuOpen(false);
+    const tr = unsetTargetBlockBackground(target);
+    getTargetTextRanges(target).forEach(({ from, to }) => {
+      tr.removeMark(from, to);
+    });
+    dispatchTargetTransaction(tr);
+    setMenuVisibility(false);
   };
 
   const downloadImage = () => {
@@ -447,7 +593,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     document.body.append(link);
     link.click();
     link.remove();
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
   const setTableAlign = (align: "left" | "center" | "right") => {
@@ -464,13 +610,14 @@ export function DragHandle({ editor }: { editor: Editor }) {
     }
 
     runTableCommand(setCellAttr(attr, value || null));
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
-  const getTableCellAttrs = (attr: "backgroundColor" | "textAlign" | "textColor") => {
-    const table = getCurrentTable();
-
-    if (!table) {
+  const getTableCellAttrs = (
+    table: MenuTarget | null,
+    attr: "backgroundColor" | "textAlign" | "textColor",
+  ) => {
+    if (table?.kind !== "table") {
       return null;
     }
 
@@ -494,7 +641,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     }
 
     runTableCommand(deleteCellSelection);
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
   const fitTableToWidth = () => {
@@ -520,36 +667,19 @@ export function DragHandle({ editor }: { editor: Editor }) {
     }
 
     selectWholeTable();
-    setMenuOpen(false);
+    setMenuVisibility(false);
   };
 
-  const currentTarget = getCurrentTarget();
+  const currentTarget = currentTargetState;
   const isTableMenu = currentTarget?.kind === "table";
-  const tableTextColor = isTableMenu ? getTableCellAttrs("textColor") : null;
-  const tableBackgroundColor = isTableMenu ? getTableCellAttrs("backgroundColor") : null;
-  const tableTextAlign = isTableMenu ? getTableCellAttrs("textAlign") : null;
-  const menuTitle =
-    currentTarget?.kind === "heading"
-      ? "Heading"
-      : currentTarget?.kind === "blockquote"
-        ? "Blockquote"
-        : currentTarget?.kind === "bulletList"
-          ? "Bullet list"
-          : currentTarget?.kind === "orderedList"
-            ? "Numbered list"
-            : currentTarget?.kind === "taskList"
-              ? "To-do list"
-              : currentTarget?.kind === "codeBlock"
-                ? "Code Block"
-                : currentTarget?.kind === "image" || currentTarget?.kind === "imageUpload"
-                  ? "Image"
-                  : currentTarget?.kind === "video"
-                    ? "Video"
-                    : currentTarget?.kind === "divider"
-                      ? "Separator"
-                      : currentTarget?.kind === "table"
-                        ? "Table"
-                        : "Text";
+  const tableTextColor = isTableMenu ? getTableCellAttrs(currentTarget, "textColor") : null;
+  const tableBackgroundColor = isTableMenu ? getTableCellAttrs(currentTarget, "backgroundColor") : null;
+  const tableTextAlign = isTableMenu ? getTableCellAttrs(currentTarget, "textAlign") : null;
+  const blockBackgroundColor =
+    currentTarget && "blockBackgroundColor" in currentTarget.node.attrs
+      ? ((currentTarget.node.attrs.blockBackgroundColor as string | null | undefined) ?? "")
+      : "";
+  const menuTitle = currentTarget ? menuTitleMap[currentTarget.kind] : menuTitleMap.text;
   const canColor =
     currentTarget?.kind === "text" ||
     currentTarget?.kind === "heading" ||
@@ -566,95 +696,85 @@ export function DragHandle({ editor }: { editor: Editor }) {
     currentTarget?.kind === "text" ||
     currentTarget?.kind === "blockquote" ||
     currentTarget?.kind === "bulletList" ||
-    currentTarget?.kind === "orderedList";
+    currentTarget?.kind === "orderedList" ||
+    currentTarget?.kind === "taskList";
   const canDownloadImage = currentTarget?.kind === "image";
   const canDuplicate = currentTarget !== null;
+  const handleElementDragStart = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+  const handleElementDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+  const handleNodeChange = useCallback(
+    ({ node, pos }: { node: NonNullable<ReturnType<Editor["state"]["doc"]["nodeAt"]>> | null; pos: number }) => {
+      currentNodeRef.current = node;
+      currentNodePosRef.current = node ? pos : -1;
+      setCurrentTargetState(node ? getCurrentTarget() : null);
+    },
+    [],
+  );
 
   return (
     <TiptapDragHandle
       editor={editor}
       className="drag-handle-shell"
-      onNodeChange={({ node, pos }) => {
-        currentNodePosRef.current = pos;
-
-        if (node?.type.name === "horizontalRule") {
-          requestAnimationFrame(() => {
-            const nodeDom = editor.view.nodeDOM(pos);
-
-            if (!(nodeDom instanceof HTMLElement)) {
-              setDividerOffsetY(0);
-              return;
-            }
-
-            const rule = nodeDom.querySelector("hr");
-
-            if (!(rule instanceof HTMLElement)) {
-              setDividerOffsetY(0);
-              return;
-            }
-
-            const nodeRect = nodeDom.getBoundingClientRect();
-            const ruleRect = rule.getBoundingClientRect();
-            const buttonsHeight = buttonsRef.current?.getBoundingClientRect().height ?? 32;
-            const offset = ruleRect.top + ruleRect.height / 2 - nodeRect.top - buttonsHeight / 2;
-
-            setDividerOffsetY(Math.round(offset));
-          });
-
-          return;
-        }
-
-        setDividerOffsetY(0);
-      }}
-      onElementDragStart={() => setIsDragging(true)}
-      onElementDragEnd={() => setIsDragging(false)}
+      onNodeChange={handleNodeChange}
+      onElementDragStart={handleElementDragStart}
+      onElementDragEnd={handleElementDragEnd}
     >
       <div
-        ref={buttonsRef}
-        className={`drag-handle-buttons flex items-start gap-px pr-1 text-muted-foreground/50 hover:text-muted-foreground ${
-          isDragging ? "pointer-events-none scale-95 opacity-0" : ""
-        }`}
-        style={
-          {
-            "--drag-handle-offset-y": `${dividerOffsetY}px`,
-          } as CSSProperties
-        }
+        className={`drag-handle-buttons flex items-start text-muted-foreground/50 hover:text-muted-foreground ${isDragging ? "pointer-events-none scale-95 opacity-0" : ""
+          }`}
       >
         <button
           type="button"
           title="Insert block"
-          onMouseDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
           onClick={handleAddBlock}
           className="drag-handle-action drag-handle-add flex h-8 w-6 items-center justify-center rounded-full"
         >
           <Plus className="size-4" strokeWidth={2} />
         </button>
 
-        <div className="relative ml-px flex h-8 w-5 items-center justify-center">
+        <div className="relative ml-px flex h-8 w-6 items-center justify-center">
           <button
             type="button"
             title="Click for options. Hold for drag."
             onPointerDown={handleGripPointerDown}
-            className="drag-handle-action drag-handle-grip flex h-8 w-5 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
+            className="drag-handle-action drag-handle-grip flex h-8 w-6 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
           >
             <GripVertical className="size-[15px]" strokeWidth={1.8} />
           </button>
 
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuVisibility}>
             <DropdownMenuTrigger asChild>
               <span
                 className="pointer-events-none absolute inset-0 outline-none"
                 tabIndex={-1}
-                aria-hidden="true"
               />
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="start" className={isTableMenu ? "table-control-menu w-56" : "table-control-menu w-52"} collisionPadding={16} sideOffset={8}>
+            <DropdownMenuContent
+              align="center"
+              avoidCollisions
+              className={isTableMenu ? "table-control-menu w-56" : "table-control-menu w-52"}
+              collisionPadding={16}
+              onCloseAutoFocus={(event) => event.preventDefault()}
+              side="right"
+              sideOffset={18}
+            >
               {isTableMenu ? (
                 <>
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Table</div>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
+                  <DropdownMenuSub open={openSubMenu === "table-color"} onOpenChange={(open) => setOpenSubMenu(open ? "table-color" : null)}>
+                    <DropdownMenuSubTrigger
+                      onFocus={() => setOpenSubMenu("table-color")}
+                      onPointerMove={() => setOpenSubMenu("table-color")}
+                    >
                       <PaintBucket className="size-4" /> Color
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
@@ -692,8 +812,11 @@ export function DragHandle({ editor }: { editor: Editor }) {
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
 
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
+                  <DropdownMenuSub open={openSubMenu === "table-alignment"} onOpenChange={(open) => setOpenSubMenu(open ? "table-alignment" : null)}>
+                    <DropdownMenuSubTrigger
+                      onFocus={() => setOpenSubMenu("table-alignment")}
+                      onPointerMove={() => setOpenSubMenu("table-alignment")}
+                    >
                       <AlignLeft className="size-4" /> Alignment
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
@@ -728,8 +851,11 @@ export function DragHandle({ editor }: { editor: Editor }) {
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{menuTitle}</div>
 
                   {canColor && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
+                    <DropdownMenuSub open={openSubMenu === "block-color"} onOpenChange={(open) => setOpenSubMenu(open ? "block-color" : null)}>
+                      <DropdownMenuSubTrigger
+                        onFocus={() => setOpenSubMenu("block-color")}
+                        onPointerMove={() => setOpenSubMenu("block-color")}
+                      >
                         <PaintBucket className="size-4" /> Color
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
@@ -755,7 +881,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                             <button
                               key={`block-highlight-${color.label}`}
                               aria-label={`${color.label} highlight color`}
-                              className="table-control-background-swatch"
+                              className={`table-control-background-swatch ${blockBackgroundColor === color.value ? "is-active" : ""}`}
                               onClick={() => setBlockHighlightColor(color.value || undefined)}
                               onMouseDown={(event) => event.preventDefault()}
                               type="button"
@@ -769,8 +895,11 @@ export function DragHandle({ editor }: { editor: Editor }) {
                   )}
 
                   {canTurnInto && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
+                    <DropdownMenuSub open={openSubMenu === "block-turn-into"} onOpenChange={(open) => setOpenSubMenu(open ? "block-turn-into" : null)}>
+                      <DropdownMenuSubTrigger
+                        onFocus={() => setOpenSubMenu("block-turn-into")}
+                        onPointerMove={() => setOpenSubMenu("block-turn-into")}
+                      >
                         <Repeat className="size-4" /> Turn Into
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu w-48" collisionPadding={16}>

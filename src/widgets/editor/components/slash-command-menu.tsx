@@ -2,8 +2,6 @@ import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import type { LucideIcon } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
-import { Command, CommandEmpty } from "@/shared/ui/command";
-
 export type SlashCommandItem = {
   title: string;
   description: string;
@@ -69,9 +67,9 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
 
   if (!items.length) {
     return (
-      <Command className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
-        <CommandEmpty className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching commands</CommandEmpty>
-      </Command>
+      <div className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
+        <div className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching commands</div>
+      </div>
     );
   }
 
@@ -89,8 +87,8 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
     .filter(([, groupItems]) => groupItems.length > 0);
 
   return (
-    <Command className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
-      <div className="tiptap-slash-card-body max-h-[340px]">
+    <div className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
+      <div className="tiptap-slash-card-body max-h-[340px] p-0">
         {orderedGroups.map(([group, groupItems]) => (
           <div key={group} className="tiptap-slash-card-group">
             <div className="tiptap-slash-card-group-heading">{group}</div>
@@ -100,13 +98,13 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
               return (
                 <button
                   key={`${group}-${item.title}`}
+                  type="button"
                   aria-selected={item.index === selectedIndex}
                   data-selected={item.index === selectedIndex}
                   onMouseEnter={() => setSelectedIndex(item.index)}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectItem(item.index)}
                   className="tiptap-slash-card-item"
-                  type="button"
                 >
                   <Icon className="tiptap-slash-card-item-icon" strokeWidth={1.8} />
                   <div className="tiptap-slash-card-item-title">{item.title}</div>
@@ -116,7 +114,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
           </div>
         ))}
       </div>
-    </Command>
+    </div>
   );
 });
 

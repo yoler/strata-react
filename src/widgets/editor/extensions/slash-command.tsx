@@ -2,7 +2,7 @@
 import { Extension } from "@tiptap/core";
 import { ReactRenderer } from "@tiptap/react";
 import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
-import Suggestion from "@tiptap/suggestion";
+import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import { CodeSquare, Heading1, Heading2, Heading3, Image as ImageIcon, List, ListOrdered, ListTodo, Minus, Quote, Smile, Table as TableIcon, Type, Video } from "lucide-react";
 import { PluginKey } from "prosemirror-state";
 
@@ -203,6 +203,31 @@ const updatePopupPosition = (
 function renderItems() {
   let component: ReactRenderer<SlashCommandMenuHandle, React.ComponentProps<typeof SlashCommandMenu>> | null = null;
   let popup: HTMLDivElement | null = null;
+  let removeOutsidePointerDownListener: (() => void) | null = null;
+
+  const bindOutsidePointerDown = (editor: Editor) => {
+    removeOutsidePointerDownListener?.();
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+
+      if (!target) {
+        return;
+      }
+
+      if (popup?.contains(target)) {
+        return;
+      }
+
+      exitSuggestion(editor.view, slashCommandPluginKey);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    removeOutsidePointerDownListener = () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      removeOutsidePointerDownListener = null;
+    };
+  };
 
   return {
     onStart: (props: SuggestionProps<SlashCommandItem>) => {
@@ -217,9 +242,11 @@ function renderItems() {
       popup = document.createElement("div");
       popup.style.position = "fixed";
       popup.style.zIndex = "9999";
+      popup.style.pointerEvents = "auto";
       document.body.appendChild(popup);
       popup.appendChild(component.element);
 
+      bindOutsidePointerDown(props.editor);
       component.ref?.resetSelection();
       updatePopupPosition(popup, props.clientRect);
       requestAnimationFrame(() => updatePopupPosition(popup, props.clientRect));
@@ -242,8 +269,11 @@ function renderItems() {
       return component?.ref?.onKeyDown(props) ?? false;
     },
     onExit: () => {
+      removeOutsidePointerDownListener?.();
       popup?.remove();
       component?.destroy();
+      popup = null;
+      component = null;
     },
   };
 }
