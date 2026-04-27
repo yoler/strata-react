@@ -276,8 +276,6 @@
 
 .ProseMirror blockquote {
   margin: 1.5rem 0;
-  padding-top: 0.375em;
-  padding-bottom: 0.375em;
   padding-left: 1em;
   border-left: none;
   position: relative;
@@ -678,5 +676,3 @@ ul[data-type="taskList"] li>div {
 .tiptap.ProseMirror ul[data-type="taskList"] li div>p {
   margin-bottom: 0;
 }
-
-

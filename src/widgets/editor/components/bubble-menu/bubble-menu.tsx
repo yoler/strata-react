@@ -936,7 +936,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                       }}
                       type="button"
                     >
-                      <span className="text-bubble-highlight-swatch-dot" style={{ background: color.value || "#ffffff" }} />
+                      <span className="text-bubble-highlight-swatch-dot" style={{ background: color.value || "var(--tt-highlight-default-swatch)" }} />
                     </button>
                   ))}
                 </div>

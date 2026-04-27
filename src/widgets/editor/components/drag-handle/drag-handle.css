@@ -19,6 +19,10 @@
     color 120ms ease;
 }
 
+.dark .drag-handle-action {
+  color: rgba(255, 255, 255, 0.42);
+}
+
 .drag-handle-action:hover {
   background: #f1f1ef;
   color: #6b6b67;
@@ -42,7 +46,16 @@
   color: #24272ec7;
 }
 
+.dark .drag-handle-grip {
+  color: rgba(255, 255, 255, 0.42);
+}
+
 .drag-handle-grip:hover {
   background: #f1f1ef;
   color: #6b6b67;
+}
+
+.dark .drag-handle-grip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
 }

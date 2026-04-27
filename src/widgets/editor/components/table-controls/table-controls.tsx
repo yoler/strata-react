@@ -514,7 +514,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
               onMouseDown={keepSelection}
               type="button"
             >
-              <span style={{ background: color.value || "#fff" }} />
+              <span style={{ background: color.value || "var(--tt-highlight-default-swatch)" }} />
             </button>
           ))}
         </div>

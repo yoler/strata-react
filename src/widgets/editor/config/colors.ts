@@ -18,13 +18,13 @@ export const editorTextColors: EditorColorItem[] = [
 
 export const editorBackgroundColors: EditorColorItem[] = [
   { label: "Default", value: "" },
-  { label: "Gray", value: "#f3f4f6" },
-  { label: "Brown", value: "#f3e8dc" },
-  { label: "Orange", value: "#ffedd5" },
-  { label: "Yellow", value: "#fef9c3" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Purple", value: "#ede9fe" },
-  { label: "Pink", value: "#fce7f3" },
-  { label: "Red", value: "#fee2e2" },
+  { label: "Gray", value: "var(--tt-highlight-gray)" },
+  { label: "Brown", value: "var(--tt-highlight-brown)" },
+  { label: "Orange", value: "var(--tt-highlight-orange)" },
+  { label: "Yellow", value: "var(--tt-highlight-yellow)" },
+  { label: "Green", value: "var(--tt-highlight-green)" },
+  { label: "Blue", value: "var(--tt-highlight-blue)" },
+  { label: "Purple", value: "var(--tt-highlight-purple)" },
+  { label: "Pink", value: "var(--tt-highlight-pink)" },
+  { label: "Red", value: "var(--tt-highlight-red)" },
 ];

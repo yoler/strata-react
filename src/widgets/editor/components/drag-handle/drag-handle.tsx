@@ -735,7 +735,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                             onMouseDown={(event) => event.preventDefault()}
                             type="button"
                           >
-                            <span style={{ background: color.value || "#fff" }} />
+                            <span style={{ background: color.value || "var(--tt-highlight-default-swatch)" }} />
                           </button>
                         ))}
                       </div>
@@ -816,7 +816,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                               onMouseDown={(event) => event.preventDefault()}
                               type="button"
                             >
-                              <span style={{ background: color.value || "#fff" }} />
+                              <span style={{ background: color.value || "var(--tt-highlight-default-swatch)" }} />
                             </button>
                           ))}
                         </div>
