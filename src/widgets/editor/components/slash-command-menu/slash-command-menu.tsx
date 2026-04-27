@@ -2,6 +2,8 @@ import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import type { LucideIcon } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
+import "./slash-command-menu.css";
+
 export type SlashCommandItem = {
   title: string;
   description: string;

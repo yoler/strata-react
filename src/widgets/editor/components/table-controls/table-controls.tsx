@@ -1,5 +1,6 @@
-import { type Editor, useEditorState } from "@tiptap/react";
+import { TextSelection, type Command } from "@tiptap/pm/state";
 import { CellSelection, deleteCellSelection, findCellPos, moveTableColumn, moveTableRow, setCellAttr } from "@tiptap/pm/tables";
+import { type Editor, useEditorState } from "@tiptap/react";
 import {
   AlignCenter,
   AlignLeft,
@@ -31,14 +32,12 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 
+import { editorBackgroundColors, editorTextColors } from "../../config/colors";
+import "./table-controls.css";
+
 type TableControlsProps = {
   container: HTMLDivElement | null;
   editor: Editor;
-};
-
-type ColorItem = {
-  label: string;
-  value: string;
 };
 
 type LayoutState = {
@@ -55,32 +54,6 @@ type LayoutState = {
 
 const isTableCell = (element: Element | null): element is HTMLTableCellElement =>
   element instanceof HTMLTableCellElement && (element.tagName === "TD" || element.tagName === "TH");
-
-const tableTextColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#6b7280" },
-  { label: "Brown", value: "#92400e" },
-  { label: "Orange", value: "#ea580c" },
-  { label: "Yellow", value: "#ca8a04" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Purple", value: "#7c3aed" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Red", value: "#dc2626" },
-];
-
-const tableBackgroundColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#f3f4f6" },
-  { label: "Brown", value: "#f3e8dc" },
-  { label: "Orange", value: "#ffedd5" },
-  { label: "Yellow", value: "#fef9c3" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Purple", value: "#ede9fe" },
-  { label: "Pink", value: "#fce7f3" },
-  { label: "Red", value: "#fee2e2" },
-];
 
 const buildLayout = (cell: HTMLTableCellElement): LayoutState | null => {
   const table = cell.closest("table");
@@ -112,10 +85,6 @@ const buildLayout = (cell: HTMLTableCellElement): LayoutState | null => {
     bottomInsertVisible: isLastRow,
     isFirstColumn,
     isFirstRow,
-    topHandle: {
-      left: cellRect.left + cellRect.width / 2,
-      top: tableRect.top - 14,
-    },
     leftHandle: {
       left: tableRect.left - 8,
       top: rowRect.top + rowRect.height / 2,
@@ -126,16 +95,34 @@ const buildLayout = (cell: HTMLTableCellElement): LayoutState | null => {
       height: tableRect.height,
     },
     rightInsertVisible: isLastColumn,
+    topHandle: {
+      left: cellRect.left + cellRect.width / 2,
+      top: tableRect.top - 14,
+    },
   };
 };
 
+const getEditorView = (editor: Editor) => {
+  if (editor.isDestroyed) {
+    return null;
+  }
+
+  try {
+    return editor.view;
+  } catch {
+    return null;
+  }
+};
+
 const focusCell = (editor: Editor, cell: HTMLTableCellElement | null) => {
-  if (!cell || !editor.view || editor.isDestroyed) {
+  const view = getEditorView(editor);
+
+  if (!cell || !view) {
     return false;
   }
 
   try {
-    const cellPos = editor.view.posAtDOM(cell, 0);
+    const cellPos = view.posAtDOM(cell, 0);
     editor.chain().focus(cellPos + 1).run();
     return true;
   } catch {
@@ -144,10 +131,16 @@ const focusCell = (editor: Editor, cell: HTMLTableCellElement | null) => {
 };
 
 const resolveCellPosition = (editor: Editor, cell: HTMLTableCellElement) => {
+  const view = getEditorView(editor);
+
+  if (!view) {
+    return null;
+  }
+
   const candidates = [
-    editor.view.posAtDOM(cell, 0),
-    editor.view.posAtDOM(cell, cell.childNodes.length),
-    editor.view.posAtDOM(cell, 0) + 1,
+    view.posAtDOM(cell, 0),
+    view.posAtDOM(cell, cell.childNodes.length),
+    view.posAtDOM(cell, 0) + 1,
   ];
 
   for (const pos of candidates) {
@@ -162,7 +155,9 @@ const resolveCellPosition = (editor: Editor, cell: HTMLTableCellElement) => {
 };
 
 const selectTableAxis = (editor: Editor, cell: HTMLTableCellElement | null, axis: "column" | "row") => {
-  if (!cell || !editor.view || editor.isDestroyed) {
+  const view = getEditorView(editor);
+
+  if (!cell || !view) {
     return false;
   }
 
@@ -175,8 +170,8 @@ const selectTableAxis = (editor: Editor, cell: HTMLTableCellElement | null, axis
 
     const selection = axis === "column" ? CellSelection.colSelection($cell) : CellSelection.rowSelection($cell);
 
-    editor.view.dispatch(editor.state.tr.setSelection(selection).scrollIntoView());
-    editor.view.focus();
+    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+    view.focus();
     return true;
   } catch {
     return focusCell(editor, cell);
@@ -192,25 +187,60 @@ const getTableAxisInfo = (cell: HTMLTableCellElement | null) => {
   }
 
   return {
-    columnIndex: cell.cellIndex,
     columnCount: row.cells.length,
+    columnIndex: cell.cellIndex,
     rowCount: table.rows.length,
     rowIndex: Array.from(table.rows).indexOf(row),
   };
 };
 
-const runTableCommand = (editor: Editor, command: ReturnType<typeof moveTableColumn>) => {
-  if (!editor.view || editor.isDestroyed) {
+const isHeaderColumn = (cell: HTMLTableCellElement | null) => {
+  const table = cell?.closest("table");
+
+  if (!cell || !(table instanceof HTMLTableElement)) {
     return false;
   }
 
-  const didRun = command(editor.state, editor.view.dispatch);
+  return Array.from(table.rows).every((row) => row.cells[cell.cellIndex]?.tagName === "TH");
+};
+
+const isHeaderRow = (cell: HTMLTableCellElement | null) => {
+  const row = cell?.closest("tr");
+
+  if (!cell || !(row instanceof HTMLTableRowElement)) {
+    return false;
+  }
+
+  return Array.from(row.cells).every((tableCell) => tableCell.tagName === "TH");
+};
+
+const runTableCommand = (editor: Editor, command: Command) => {
+  const view = getEditorView(editor);
+
+  if (!view) {
+    return false;
+  }
+
+  const didRun = command(view.state, view.dispatch);
 
   if (didRun) {
-    editor.view.focus();
+    view.focus();
   }
 
   return didRun;
+};
+
+const clearTableCellSelection = (editor: Editor) => {
+  const view = getEditorView(editor);
+
+  if (!view || !(view.state.selection instanceof CellSelection)) {
+    return;
+  }
+
+  const { doc, selection, tr } = view.state;
+  const focusPos = Math.min(selection.$anchorCell.pos + 1, doc.content.size);
+
+  view.dispatch(tr.setSelection(TextSelection.near(doc.resolve(focusPos), 1)));
 };
 
 export function TableControls({ container, editor }: TableControlsProps) {
@@ -231,18 +261,12 @@ export function TableControls({ container, editor }: TableControlsProps) {
     }),
   });
 
-  const activeRowIsHeader =
-    activeCell
-      ?.closest("tr")
-      ?.querySelectorAll("th").length === activeCell?.closest("tr")?.cells.length;
-  const activeColumnIsHeader =
-    activeCell?.closest("table")
-      ? Array.from(activeCell.closest("table")?.rows ?? []).every((row) => row.cells[activeCell.cellIndex]?.tagName === "TH")
-      : false;
+  const activeColumnIsHeader = isHeaderColumn(activeCell);
+  const activeRowIsHeader = isHeaderRow(activeCell);
 
   const syncHoveredLayout = useCallback(
     (cell: HTMLTableCellElement | null) => {
-      if (!container || !editor.isEditable || !editor.view || editor.isDestroyed) {
+      if (!container || !editor.isEditable || !getEditorView(editor)) {
         hoveredLayoutRef.current = null;
         setLayout(null);
         return;
@@ -309,8 +333,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
   useEffect(() => {
     const refresh = () => {
       if (hoveredLayoutRef.current?.activeCell?.isConnected) {
-        const activeHoveredCell = hoveredLayoutRef.current.activeCell;
-        const nextLayout = buildLayout(activeHoveredCell);
+        const nextLayout = buildLayout(hoveredLayoutRef.current.activeCell);
         hoveredLayoutRef.current = nextLayout;
         setLayout(nextLayout);
         return;
@@ -386,6 +409,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
   const setCellAlign = (align: "left" | "center" | "right") => {
     withActiveCell(() => {
       editor.chain().focus().setCellAttribute("textAlign", align).run();
+
       if (activeCell) {
         activeCell.setAttribute("data-text-align", align);
         setLayout((current) => (current ? { ...current } : current));
@@ -427,12 +451,26 @@ export function TableControls({ container, editor }: TableControlsProps) {
     runTableCommand(editor, moveTableRow({ from: axisInfo.rowIndex, to: targetIndex, select: true }));
   };
 
+  const closeAxisMenu = (axis: "column" | "row") => {
+    clearTableCellSelection(editor);
+
+    if (axis === "column") {
+      columnMenuOpenRef.current = false;
+      setColumnMenuOpen(false);
+      return;
+    }
+
+    rowMenuOpenRef.current = false;
+    setRowMenuOpen(false);
+  };
+
   const setAxisColor = (axis: "column" | "row", attr: "backgroundColor" | "textColor", value: string) => {
     if (!selectTableAxis(editor, activeCell, axis)) {
       return;
     }
 
     runTableCommand(editor, setCellAttr(attr, value || null));
+    closeAxisMenu(axis);
   };
 
   const clearAxisContents = (axis: "column" | "row") => {
@@ -451,7 +489,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
         <div className="table-control-color-label">Text Color</div>
         <div className="table-control-color-grid">
-          {tableTextColors.map((color) => (
+          {editorTextColors.map((color) => (
             <button
               key={`${axis}-text-${color.label}`}
               aria-label={`${color.label} text color`}
@@ -467,7 +505,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
         </div>
         <div className="table-control-color-label">Background Color</div>
         <div className="table-control-color-grid">
-          {tableBackgroundColors.map((color) => (
+          {editorBackgroundColors.map((color) => (
             <button
               key={`${axis}-background-${color.label}`}
               aria-label={`${color.label} background color`}
@@ -495,6 +533,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
         onOpenChange={(open) => {
           columnMenuOpenRef.current = open;
           setColumnMenuOpen(open);
+
           if (open) {
             if (hideTimeoutRef.current) {
               window.clearTimeout(hideTimeoutRef.current);
@@ -502,6 +541,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
             }
             selectTableAxis(editor, activeCell, "column");
           }
+
           if (!open && !rowMenuOpen && !hoveredLayoutRef.current) {
             setLayout(null);
           }
@@ -510,11 +550,9 @@ export function TableControls({ container, editor }: TableControlsProps) {
         <DropdownMenuTrigger asChild>
           <button
             className="table-control-handle table-control-column"
+            onClick={() => selectTableAxis(editor, activeCell, "column")}
             onMouseDown={(event) => {
               keepSelection(event);
-              selectTableAxis(editor, activeCell, "column");
-            }}
-            onClick={() => {
               selectTableAxis(editor, activeCell, "column");
             }}
             onPointerEnter={handleControlsPointerEnter}
@@ -529,7 +567,14 @@ export function TableControls({ container, editor }: TableControlsProps) {
             <Ellipsis className="table-control-dots-icon" strokeWidth={2.2} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="table-control-menu w-56" collisionPadding={16} sideOffset={8}>
+        <DropdownMenuContent
+          align="center"
+          className="table-control-menu w-56"
+          collisionPadding={16}
+          onEscapeKeyDown={() => clearTableCellSelection(editor)}
+          onPointerDownOutside={() => clearTableCellSelection(editor)}
+          sideOffset={8}
+        >
           {layout.isFirstColumn && (
             <>
               <DropdownMenuItem
@@ -541,14 +586,14 @@ export function TableControls({ container, editor }: TableControlsProps) {
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onClick={() => moveColumn(-1)}>
+          <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => moveColumn(-1)}>
             <ArrowLeft className="size-4" /> Move column left
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => moveColumn(1)}>
+          <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => moveColumn(1)}>
             <ArrowRight className="size-4" /> Move column right
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addColumnBefore().run())}>
+          <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => withActiveCell(() => editor.chain().focus().addColumnBefore().run())}>
             <Plus className="size-4" /> Insert column left
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addColumnAfter().run())}>
@@ -590,6 +635,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
         onOpenChange={(open) => {
           rowMenuOpenRef.current = open;
           setRowMenuOpen(open);
+
           if (open) {
             if (hideTimeoutRef.current) {
               window.clearTimeout(hideTimeoutRef.current);
@@ -597,6 +643,7 @@ export function TableControls({ container, editor }: TableControlsProps) {
             }
             selectTableAxis(editor, activeCell, "row");
           }
+
           if (!open && !columnMenuOpen && !hoveredLayoutRef.current) {
             setLayout(null);
           }
@@ -605,11 +652,9 @@ export function TableControls({ container, editor }: TableControlsProps) {
         <DropdownMenuTrigger asChild>
           <button
             className="table-control-handle table-control-row"
+            onClick={() => selectTableAxis(editor, activeCell, "row")}
             onMouseDown={(event) => {
               keepSelection(event);
-              selectTableAxis(editor, activeCell, "row");
-            }}
-            onClick={() => {
               selectTableAxis(editor, activeCell, "row");
             }}
             onPointerEnter={handleControlsPointerEnter}
@@ -624,7 +669,14 @@ export function TableControls({ container, editor }: TableControlsProps) {
             <Ellipsis className="table-control-dots-icon" strokeWidth={2.2} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="table-control-menu w-56" collisionPadding={16} sideOffset={8}>
+        <DropdownMenuContent
+          align="start"
+          className="table-control-menu w-56"
+          collisionPadding={16}
+          onEscapeKeyDown={() => clearTableCellSelection(editor)}
+          onPointerDownOutside={() => clearTableCellSelection(editor)}
+          sideOffset={8}
+        >
           {layout.isFirstRow && (
             <>
               <DropdownMenuItem
@@ -636,14 +688,14 @@ export function TableControls({ container, editor }: TableControlsProps) {
               <DropdownMenuSeparator />
             </>
           )}
-          <DropdownMenuItem onClick={() => moveRow(-1)}>
+          <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => moveRow(-1)}>
             <ArrowUp className="size-4" /> Move row up
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => moveRow(1)}>
+          <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => moveRow(1)}>
             <ArrowDown className="size-4" /> Move row down
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addRowBefore().run())}>
+          <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => withActiveCell(() => editor.chain().focus().addRowBefore().run())}>
             <Plus className="size-4" /> Insert row above
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addRowAfter().run())}>
@@ -682,18 +734,18 @@ export function TableControls({ container, editor }: TableControlsProps) {
 
       <button
         className="table-control-insert table-control-insert-vertical"
-        onMouseDown={keepSelection}
+        hidden={!layout.rightInsertVisible}
         onClick={() => withActiveCell(() => editor.chain().focus().addColumnAfter().run())}
+        onMouseDown={keepSelection}
         onPointerEnter={handleControlsPointerEnter}
         onPointerLeave={handleControlsPointerLeave}
         style={{
+          height: `${layout.rightInsert.height}px`,
           left: `${layout.rightInsert.left}px`,
           top: `${layout.rightInsert.top}px`,
-          height: `${layout.rightInsert.height}px`,
           transform: "translateY(-50%)",
         }}
         type="button"
-        hidden={!layout.rightInsertVisible}
       >
         <span className="table-control-insert-track">
           <Plus className="size-3" strokeWidth={2.1} />
@@ -702,18 +754,18 @@ export function TableControls({ container, editor }: TableControlsProps) {
 
       <button
         className="table-control-insert table-control-insert-horizontal"
-        onMouseDown={keepSelection}
+        hidden={!layout.bottomInsertVisible}
         onClick={() => withActiveCell(() => editor.chain().focus().addRowAfter().run())}
+        onMouseDown={keepSelection}
         onPointerEnter={handleControlsPointerEnter}
         onPointerLeave={handleControlsPointerLeave}
         style={{
           left: `${layout.bottomInsert.left}px`,
           top: `${layout.bottomInsert.top}px`,
-          width: `${layout.bottomInsert.width}px`,
           transform: "translateX(-50%)",
+          width: `${layout.bottomInsert.width}px`,
         }}
         type="button"
-        hidden={!layout.bottomInsertVisible}
       >
         <span className="table-control-insert-track">
           <Plus className="size-3" strokeWidth={2.1} />

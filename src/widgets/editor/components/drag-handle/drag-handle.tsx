@@ -15,26 +15,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { isContainerBlockKind, replaceContainerBlock, type TurnIntoValue } from "../lib/turn-into";
 
-type ColorItem = {
-  label: string;
-  value: string;
-};
-
-type MenuNodeKind =
-  | "text"
-  | "heading"
-  | "blockquote"
-  | "bulletList"
-  | "orderedList"
-  | "taskList"
-  | "codeBlock"
-  | "image"
-  | "imageUpload"
-  | "video"
-  | "divider"
-  | "table";
+import { editorBackgroundColors, editorTextColors } from "../../config/colors";
+import { getMenuNodeKind, MENU_TITLE_BY_KIND, type MenuNodeKind } from "../../config/node-menu";
+import { TURN_INTO_OPTIONS } from "../../config/turn-into";
+import { isContainerBlockKind, replaceContainerBlock, type TurnIntoValue } from "../../lib/turn-into";
+import "./drag-handle.css";
 
 type MenuTarget = {
   kind: MenuNodeKind;
@@ -44,83 +30,42 @@ type MenuTarget = {
 
 type OpenSubMenu = "block-color" | "block-turn-into" | "table-alignment" | "table-color" | null;
 
-const tableTextColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#6b7280" },
-  { label: "Brown", value: "#92400e" },
-  { label: "Orange", value: "#ea580c" },
-  { label: "Yellow", value: "#ca8a04" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Purple", value: "#7c3aed" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Red", value: "#dc2626" },
-];
+const turnIntoIconByValue: Record<TurnIntoValue, typeof Pilcrow> = {
+  text: Pilcrow,
+  "heading-1": Heading1,
+  "heading-2": Heading2,
+  "heading-3": Heading3,
+  "bullet-list": List,
+  "numbered-list": ListOrdered,
+  "todo-list": ListTodo,
+  quote: Quote,
+  "code-block": Code,
+};
 
-const tableBackgroundColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#f3f4f6" },
-  { label: "Brown", value: "#f3e8dc" },
-  { label: "Orange", value: "#ffedd5" },
-  { label: "Yellow", value: "#fef9c3" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Purple", value: "#ede9fe" },
-  { label: "Pink", value: "#fce7f3" },
-  { label: "Red", value: "#fee2e2" },
-];
+const resolveMenuTarget = (
+  editor: Editor,
+  node: NonNullable<ReturnType<Editor["state"]["doc"]["nodeAt"]>>,
+  pos: number,
+): MenuTarget => {
+  const currentKind = getMenuNodeKind(node.type.name);
 
-const blockTextColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#6b7280" },
-  { label: "Brown", value: "#92400e" },
-  { label: "Orange", value: "#ea580c" },
-  { label: "Yellow", value: "#ca8a04" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Purple", value: "#7c3aed" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Red", value: "#dc2626" },
-];
+  if (currentKind) {
+    return { kind: currentKind, node, pos };
+  }
 
-const blockHighlightColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#f3f4f6" },
-  { label: "Brown", value: "#f3e8dc" },
-  { label: "Orange", value: "#ffedd5" },
-  { label: "Yellow", value: "#fef9c3" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Purple", value: "#ede9fe" },
-  { label: "Pink", value: "#fce7f3" },
-  { label: "Red", value: "#fee2e2" },
-];
+  const resolvedPos = editor.state.doc.resolve(Math.min(pos + 1, editor.state.doc.content.size));
 
-const turnIntoItems = [
-  { label: "Text", value: "text", icon: Pilcrow },
-  { label: "Heading 1", value: "heading-1", icon: Heading1 },
-  { label: "Heading 2", value: "heading-2", icon: Heading2 },
-  { label: "Heading 3", value: "heading-3", icon: Heading3 },
-  { label: "Bullet list", value: "bullet-list", icon: List },
-  { label: "Numbered list", value: "numbered-list", icon: ListOrdered },
-  { label: "To-do list", value: "todo-list", icon: ListTodo },
-  { label: "Quote", value: "quote", icon: Quote },
-  { label: "Code block", value: "code-block", icon: Code },
-] as const;
+  for (let depth = resolvedPos.depth; depth > 0; depth -= 1) {
+    const parentNode = resolvedPos.node(depth);
+    const parentPos = resolvedPos.before(depth);
+    const kind = getMenuNodeKind(parentNode.type.name);
 
-const menuTitleMap: Record<MenuNodeKind, string> = {
-  text: "Text",
-  heading: "Heading",
-  blockquote: "Blockquote",
-  bulletList: "Bullet list",
-  orderedList: "Numbered list",
-  taskList: "To-do list",
-  codeBlock: "Code Block",
-  image: "Image",
-  imageUpload: "Image",
-  video: "Video",
-  divider: "Separator",
-  table: "Table",
+    if (kind) {
+      return { kind, node: parentNode, pos: parentPos };
+    }
+  }
+
+  return { kind: "text", node, pos };
 };
 
 export function DragHandle({ editor }: { editor: Editor }) {
@@ -181,7 +126,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     setMenuOpen(open);
   };
 
-  const getCurrentNode = () => {
+  const getCurrentNode = useCallback(() => {
     const pos = currentNodePosRef.current;
     const node = currentNodeRef.current;
 
@@ -190,63 +135,47 @@ export function DragHandle({ editor }: { editor: Editor }) {
     }
 
     return { node, pos };
-  };
+  }, []);
 
-  const getCurrentTarget = (): MenuTarget | null => {
+  const getCurrentTarget = useCallback((): MenuTarget | null => {
     const current = getCurrentNode();
 
     if (!current) {
       return null;
     }
 
-    const currentTypeName = current.node.type.name;
+    return resolveMenuTarget(editor, current.node, current.pos);
+  }, [editor, getCurrentNode]);
 
-    if (currentTypeName === "table") return { kind: "table", node: current.node, pos: current.pos };
-    if (currentTypeName === "image") return { kind: "image", node: current.node, pos: current.pos };
-    if (currentTypeName === "imageUpload") return { kind: "imageUpload", node: current.node, pos: current.pos };
-    if (currentTypeName === "videoEmbed" || currentTypeName === "videoEmbedInput") return { kind: "video", node: current.node, pos: current.pos };
-    if (currentTypeName === "codeBlock") return { kind: "codeBlock", node: current.node, pos: current.pos };
-    if (currentTypeName === "blockquote") return { kind: "blockquote", node: current.node, pos: current.pos };
-    if (currentTypeName === "taskList") return { kind: "taskList", node: current.node, pos: current.pos };
-    if (currentTypeName === "bulletList") return { kind: "bulletList", node: current.node, pos: current.pos };
-    if (currentTypeName === "orderedList") return { kind: "orderedList", node: current.node, pos: current.pos };
-    if (currentTypeName === "heading") return { kind: "heading", node: current.node, pos: current.pos };
-    if (currentTypeName === "horizontalRule") return { kind: "divider", node: current.node, pos: current.pos };
-    if (currentTypeName === "paragraph") return { kind: "text", node: current.node, pos: current.pos };
-
-    const resolvedPos = editor.state.doc.resolve(Math.min(current.pos + 1, editor.state.doc.content.size));
-
-    for (let depth = resolvedPos.depth; depth > 0; depth -= 1) {
-      const node = resolvedPos.node(depth);
-      const pos = resolvedPos.before(depth);
-      const typeName = node.type.name;
-
-      if (typeName === "table") return { kind: "table", node, pos };
-      if (typeName === "image") return { kind: "image", node, pos };
-      if (typeName === "imageUpload") return { kind: "imageUpload", node, pos };
-      if (typeName === "videoEmbed" || typeName === "videoEmbedInput") return { kind: "video", node, pos };
-      if (typeName === "codeBlock") return { kind: "codeBlock", node, pos };
-      if (typeName === "blockquote") return { kind: "blockquote", node, pos };
-      if (typeName === "taskList") return { kind: "taskList", node, pos };
-      if (typeName === "bulletList") return { kind: "bulletList", node, pos };
-      if (typeName === "orderedList") return { kind: "orderedList", node, pos };
-      if (typeName === "heading") return { kind: "heading", node, pos };
-      if (typeName === "horizontalRule") return { kind: "divider", node, pos };
-      if (typeName === "paragraph") return { kind: "text", node, pos };
-    }
-
-    return { kind: "text", node: current.node, pos: current.pos };
-  };
-
-  const getCurrentTable = () => {
+  const getCurrentTable = useCallback(() => {
     const current = getCurrentTarget();
 
-    if (current?.kind !== "table") {
+    if (current?.kind === "table") {
+      return current;
+    }
+
+    const currentNode = getCurrentNode();
+
+    if (!currentNode) {
       return null;
     }
 
-    return current;
-  };
+    const resolvedPos = editor.state.doc.resolve(Math.min(currentNode.pos + 1, editor.state.doc.content.size));
+
+    for (let depth = resolvedPos.depth; depth > 0; depth -= 1) {
+      const node = resolvedPos.node(depth);
+
+      if (node.type.name === "table") {
+        return {
+          kind: "table" as const,
+          node,
+          pos: resolvedPos.before(depth),
+        };
+      }
+    }
+
+    return null;
+  }, [editor, getCurrentNode, getCurrentTarget]);
 
   const getTargetFocusPos = (target: MenuTarget) => {
     if (target.node.isTextblock) {
@@ -402,7 +331,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     isDraggingRef.current = false;
     startPosRef.current = { x: event.clientX, y: event.clientY };
 
-    if (getCurrentTarget()?.kind === "table") {
+    if (getCurrentTable()) {
       selectWholeTable();
     } else {
       selectCurrentBlock();
@@ -679,7 +608,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     currentTarget && "blockBackgroundColor" in currentTarget.node.attrs
       ? ((currentTarget.node.attrs.blockBackgroundColor as string | null | undefined) ?? "")
       : "";
-  const menuTitle = currentTarget ? menuTitleMap[currentTarget.kind] : menuTitleMap.text;
+  const menuTitle = currentTarget ? MENU_TITLE_BY_KIND[currentTarget.kind] : MENU_TITLE_BY_KIND.text;
   const canColor =
     currentTarget?.kind === "text" ||
     currentTarget?.kind === "heading" ||
@@ -705,14 +634,15 @@ export function DragHandle({ editor }: { editor: Editor }) {
   }, []);
   const handleElementDragEnd = useCallback(() => {
     setIsDragging(false);
-  }, []);
+    editor.view.dispatch(editor.state.tr.setMeta("hideDragHandle", true));
+  }, [editor]);
   const handleNodeChange = useCallback(
     ({ node, pos }: { node: NonNullable<ReturnType<Editor["state"]["doc"]["nodeAt"]>> | null; pos: number }) => {
       currentNodeRef.current = node;
       currentNodePosRef.current = node ? pos : -1;
-      setCurrentTargetState(node ? getCurrentTarget() : null);
+      setCurrentTargetState(node ? resolveMenuTarget(editor, node, pos) : null);
     },
-    [],
+    [editor],
   );
 
   return (
@@ -723,64 +653,64 @@ export function DragHandle({ editor }: { editor: Editor }) {
       onElementDragStart={handleElementDragStart}
       onElementDragEnd={handleElementDragEnd}
     >
-      <div
-        className={`drag-handle-buttons flex items-start text-muted-foreground/50 hover:text-muted-foreground ${isDragging ? "pointer-events-none scale-95 opacity-0" : ""
-          }`}
-      >
-        <button
-          type="button"
-          title="Insert block"
-          onMouseDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onClick={handleAddBlock}
-          className="drag-handle-action drag-handle-add flex h-8 w-6 items-center justify-center rounded-full"
+        <div
+          className={`drag-handle-buttons flex items-start text-muted-foreground/50 hover:text-muted-foreground ${isDragging ? "pointer-events-none scale-95 opacity-0" : ""
+            }`}
         >
-          <Plus className="size-4" strokeWidth={2} />
-        </button>
-
-        <div className="relative ml-px flex h-8 w-6 items-center justify-center">
           <button
             type="button"
-            title="Click for options. Hold for drag."
-            onPointerDown={handleGripPointerDown}
-            className="drag-handle-action drag-handle-grip flex h-8 w-6 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
+            title="Insert block"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={handleAddBlock}
+            className="drag-handle-action drag-handle-add flex h-8 w-6 items-center justify-center rounded-full"
           >
-            <GripVertical className="size-[15px]" strokeWidth={1.8} />
+            <Plus className="size-4" strokeWidth={2} />
           </button>
 
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuVisibility}>
-            <DropdownMenuTrigger asChild>
-              <span
-                className="pointer-events-none absolute inset-0 outline-none"
-                tabIndex={-1}
-              />
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent
-              align="center"
-              avoidCollisions
-              className={isTableMenu ? "table-control-menu w-56" : "table-control-menu w-52"}
-              collisionPadding={16}
-              onCloseAutoFocus={(event) => event.preventDefault()}
-              side="right"
-              sideOffset={18}
+          <div className="relative ml-px flex h-8 w-6 items-center justify-center">
+            <button
+              type="button"
+              title="Click for options. Hold for drag."
+              onPointerDown={handleGripPointerDown}
+              className="drag-handle-action drag-handle-grip flex h-8 w-6 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
             >
-              {isTableMenu ? (
-                <>
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Table</div>
-                  <DropdownMenuSub open={openSubMenu === "table-color"} onOpenChange={(open) => setOpenSubMenu(open ? "table-color" : null)}>
-                    <DropdownMenuSubTrigger
-                      onFocus={() => setOpenSubMenu("table-color")}
-                      onPointerMove={() => setOpenSubMenu("table-color")}
-                    >
-                      <PaintBucket className="size-4" /> Color
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
-                      <div className="table-control-color-label">Text Color</div>
-                      <div className="table-control-color-grid">
-                        {tableTextColors.map((color) => (
+              <GripVertical className="size-[15px]" strokeWidth={1.8} />
+            </button>
+
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuVisibility}>
+              <DropdownMenuTrigger asChild>
+                <span
+                  className="pointer-events-none absolute inset-0 outline-none"
+                  tabIndex={-1}
+                />
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="center"
+                avoidCollisions
+                className={isTableMenu ? "table-control-menu w-56" : "table-control-menu w-52"}
+                collisionPadding={16}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                side="right"
+                sideOffset={18}
+              >
+                {isTableMenu ? (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Table</div>
+                    <DropdownMenuSub open={openSubMenu === "table-color"} onOpenChange={(open) => setOpenSubMenu(open ? "table-color" : null)}>
+                      <DropdownMenuSubTrigger
+                        onFocus={() => setOpenSubMenu("table-color")}
+                        onPointerMove={() => setOpenSubMenu("table-color")}
+                      >
+                        <PaintBucket className="size-4" /> Color
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
+                        <div className="table-control-color-label">Text Color</div>
+                        <div className="table-control-color-grid">
+                    {editorTextColors.map((color) => (
                           <button
                             key={`table-text-${color.label}`}
                             aria-label={`${color.label} text color`}
@@ -796,7 +726,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                       </div>
                       <div className="table-control-color-label">Background Color</div>
                       <div className="table-control-color-grid">
-                        {tableBackgroundColors.map((color) => (
+                    {editorBackgroundColors.map((color) => (
                           <button
                             key={`table-background-${color.label}`}
                             aria-label={`${color.label} background color`}
@@ -861,7 +791,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
                         <div className="table-control-color-label">Text Color</div>
                         <div className="table-control-color-grid">
-                          {blockTextColors.map((color) => (
+                          {editorTextColors.map((color) => (
                             <button
                               key={`block-text-${color.label}`}
                               aria-label={`${color.label} text color`}
@@ -877,7 +807,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                         </div>
                         <div className="table-control-color-label">Background Color</div>
                         <div className="table-control-color-grid">
-                          {blockHighlightColors.map((color) => (
+                          {editorBackgroundColors.map((color) => (
                             <button
                               key={`block-highlight-${color.label}`}
                               aria-label={`${color.label} highlight color`}
@@ -903,11 +833,15 @@ export function DragHandle({ editor }: { editor: Editor }) {
                         <Repeat className="size-4" /> Turn Into
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu w-48" collisionPadding={16}>
-                        {turnIntoItems.map((item) => (
-                          <DropdownMenuItem key={item.value} onClick={() => turnInto(item.value)}>
-                            <item.icon className="size-4" /> {item.label}
-                          </DropdownMenuItem>
-                        ))}
+                        {TURN_INTO_OPTIONS.map((item) => {
+                          const Icon = turnIntoIconByValue[item.value];
+
+                          return (
+                            <DropdownMenuItem key={item.value} onClick={() => turnInto(item.value)}>
+                              <Icon className="size-4" /> {item.label}
+                            </DropdownMenuItem>
+                          );
+                        })}
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )}

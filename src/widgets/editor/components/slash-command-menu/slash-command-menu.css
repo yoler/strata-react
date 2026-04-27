@@ -1,0 +1,132 @@
+.tiptap-slash-decoration {
+  display: inline-flex;
+  align-items: center;
+  background: var(--tt-slash-decoration-bg-color);
+  border-radius: 6px;
+  outline: 5.5px solid var(--tt-slash-decoration-bg-color);
+  color: inherit;
+  white-space: nowrap;
+}
+
+.tiptap-slash-decoration::after {
+  content: attr(data-decoration-content);
+  color: var(--tt-slash-decoration-color);
+}
+
+.tiptap-slash-decoration.is-empty::after {
+  content: attr(data-decoration-content);
+}
+
+.tiptap-slash-decoration::selection {
+  background: transparent;
+}
+
+.tiptap-slash-card {
+  font-family: inherit;
+  border-radius: var(--editor-menu-radius);
+  box-shadow: var(--editor-menu-shadow);
+  background-color: var(--editor-menu-bg-color);
+  border: 1px solid var(--editor-menu-border-color);
+  word-wrap: break-word;
+  background-clip: padding-box;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.tiptap-slash-card-body {
+  width: 100%;
+  padding: 0.375rem;
+  overflow-y: auto;
+}
+
+@media screen and (min-width: 480px) {
+  .tiptap-slash-card {
+    min-width: 15.5rem;
+  }
+}
+
+.tiptap-slash-card-group {
+  padding: 0;
+}
+
+.tiptap-slash-card-group:not(:first-child) {
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  margin-top: 0.375rem;
+  padding-top: 0.375rem;
+}
+
+.tiptap-slash-card-group-heading {
+  color: rgba(39, 46, 78, 0.72);
+  padding: 0.45rem 0.625rem 0.25rem;
+  margin-bottom: 0.125rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+
+.tiptap-slash-card-item {
+  min-height: 2rem;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0.625rem;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.625rem;
+  cursor: pointer;
+  color: rgb(39, 46, 78);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.tiptap-slash-card-item[data-selected="true"],
+.tiptap-slash-card-item:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: rgb(24, 31, 54);
+}
+
+.dark .tiptap-slash-card-item[data-selected="true"],
+.dark .tiptap-slash-card-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tiptap-slash-card-item-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: rgba(39, 46, 78, 0.72);
+}
+
+.tiptap-slash-card-item-title {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.dark .tiptap-slash-card-group-heading {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dark .tiptap-slash-card-group:not(:first-child) {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .tiptap-slash-card-item {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.dark .tiptap-slash-card-item-icon {
+  color: rgba(255, 255, 255, 0.62);
+}

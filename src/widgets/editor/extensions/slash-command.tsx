@@ -1,17 +1,15 @@
-﻿import type { Editor, Range } from "@tiptap/core";
+import type { Editor, Range } from "@tiptap/core";
 import { Extension } from "@tiptap/core";
-import { ReactRenderer } from "@tiptap/react";
-import type { SuggestionKeyDownProps, SuggestionProps } from "@tiptap/suggestion";
-import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
+import Suggestion from "@tiptap/suggestion";
 import { CodeSquare, Heading1, Heading2, Heading3, Image as ImageIcon, List, ListOrdered, ListTodo, Minus, Quote, Smile, Table as TableIcon, Type, Video } from "lucide-react";
 import { PluginKey } from "prosemirror-state";
+import type { ComponentProps } from "react";
 
-import { SlashCommandMenu, type SlashCommandItem, type SlashCommandMenuHandle } from "../components/slash-command-menu";
+import { SlashCommandMenu, type SlashCommandItem, type SlashCommandMenuHandle } from "../components/slash-command-menu/slash-command-menu";
 import { DEFAULT_CODE_BLOCK_LANGUAGE } from "../lib/code-block";
+import { createSuggestionPopupRenderer } from "../lib/suggestion-popup";
 
 const slashCommandPluginKey = new PluginKey("slash-command-suggestion");
-const SLASH_MENU_OFFSET = 8;
-const SLASH_MENU_VIEWPORT_PADDING = 8;
 
 function getSuggestionItems({
   query,
@@ -157,125 +155,25 @@ function getSuggestionItems({
   });
 }
 
-const updatePopupPosition = (
-  container: HTMLDivElement | null,
-  clientRect?: SuggestionProps<SlashCommandItem>["clientRect"],
-) => {
-  if (!container || !clientRect) {
-    return;
-  }
-
-  const rect = clientRect();
-
-  if (!rect) {
-    return;
-  }
-
-  const menuElement = container.firstElementChild instanceof HTMLElement ? container.firstElementChild : container;
-  const menuRect = menuElement.getBoundingClientRect();
-  const menuWidth = menuRect.width || 238;
-  const menuHeight = menuRect.height || 360;
-  const viewportRight = window.innerWidth - SLASH_MENU_VIEWPORT_PADDING;
-  const viewportBottom = window.innerHeight - SLASH_MENU_VIEWPORT_PADDING;
-  let left = rect.left;
-  let top = rect.bottom + SLASH_MENU_OFFSET;
-
-  if (left + menuWidth > viewportRight) {
-    left = viewportRight - menuWidth;
-  }
-
-  if (left < SLASH_MENU_VIEWPORT_PADDING) {
-    left = SLASH_MENU_VIEWPORT_PADDING;
-  }
-
-  if (top + menuHeight > viewportBottom) {
-    top = rect.top - menuHeight - SLASH_MENU_OFFSET;
-  }
-
-  if (top < SLASH_MENU_VIEWPORT_PADDING) {
-    top = SLASH_MENU_VIEWPORT_PADDING;
-  }
-
-  container.style.left = `${left}px`;
-  container.style.top = `${top}px`;
-};
-
 function renderItems() {
-  let component: ReactRenderer<SlashCommandMenuHandle, React.ComponentProps<typeof SlashCommandMenu>> | null = null;
-  let popup: HTMLDivElement | null = null;
-  let removeOutsidePointerDownListener: (() => void) | null = null;
-
-  const bindOutsidePointerDown = (editor: Editor) => {
-    removeOutsidePointerDownListener?.();
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target instanceof Node ? event.target : null;
-
-      if (!target) {
-        return;
-      }
-
-      if (popup?.contains(target)) {
-        return;
-      }
-
-      exitSuggestion(editor.view, slashCommandPluginKey);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    removeOutsidePointerDownListener = () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      removeOutsidePointerDownListener = null;
-    };
-  };
-
-  return {
-    onStart: (props: SuggestionProps<SlashCommandItem>) => {
-      component = new ReactRenderer(SlashCommandMenu, {
-        props: {
-          command: props.command,
-          items: props.items,
-        },
-        editor: props.editor,
-      });
-
-      popup = document.createElement("div");
-      popup.style.position = "fixed";
-      popup.style.zIndex = "9999";
-      popup.style.pointerEvents = "auto";
-      document.body.appendChild(popup);
-      popup.appendChild(component.element);
-
-      bindOutsidePointerDown(props.editor);
-      component.ref?.resetSelection();
-      updatePopupPosition(popup, props.clientRect);
-      requestAnimationFrame(() => updatePopupPosition(popup, props.clientRect));
+  return createSuggestionPopupRenderer<
+    SlashCommandItem,
+    SlashCommandMenuHandle,
+    ComponentProps<typeof SlashCommandMenu>
+  >({
+    component: SlashCommandMenu,
+    getProps: (props) => ({
+      command: props.command,
+      items: props.items,
+    }),
+    pluginKey: slashCommandPluginKey,
+    position: {
+      height: 360,
+      offset: 8,
+      padding: 8,
+      width: 238,
     },
-    onUpdate: (props: SuggestionProps<SlashCommandItem>) => {
-      component?.updateProps({
-        command: props.command,
-        items: props.items,
-      });
-      component?.ref?.resetSelection();
-      updatePopupPosition(popup, props.clientRect);
-      requestAnimationFrame(() => updatePopupPosition(popup, props.clientRect));
-    },
-    onKeyDown: (props: SuggestionKeyDownProps) => {
-      if (props.event.key === "Escape") {
-        popup?.remove();
-        return true;
-      }
-
-      return component?.ref?.onKeyDown(props) ?? false;
-    },
-    onExit: () => {
-      removeOutsidePointerDownListener?.();
-      popup?.remove();
-      component?.destroy();
-      popup = null;
-      component = null;
-    },
-  };
+  });
 }
 
 export const SlashCommand = Extension.create({

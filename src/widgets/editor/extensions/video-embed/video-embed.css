@@ -1,0 +1,88 @@
+.tiptap.ProseMirror .video-embed-input-node,
+.tiptap.ProseMirror .video-embed-node {
+  margin: 1.5rem 0;
+}
+
+.tiptap.ProseMirror .video-embed-node {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="left"] {
+  justify-content: flex-start;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="center"] {
+  justify-content: center;
+}
+
+.tiptap.ProseMirror .video-embed-node[data-align="right"] {
+  justify-content: flex-end;
+}
+
+.tiptap.ProseMirror .video-embed-frame-shell {
+  width: 100%;
+  max-width: 48rem;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.16), transparent 28%),
+    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.08),
+    0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+.tiptap.ProseMirror .video-embed-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: transparent;
+}
+
+.tiptap.ProseMirror .video-embed-frame-shell:hover,
+.tiptap.ProseMirror .video-embed-node.is-selected .video-embed-frame-shell {
+  outline: 2px solid #6d28d9;
+  outline-offset: 0;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 5px;
+  height: 50px;
+  border-radius: 9999px;
+  background: #6d28d9;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 140ms ease;
+  cursor: ew-resize;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle.is-left {
+  left: 2px;
+}
+
+.tiptap.ProseMirror .video-embed-resize-handle.is-right {
+  right: 2px;
+}
+
+.tiptap.ProseMirror .video-embed-frame-shell:hover .video-embed-resize-handle,
+.tiptap.ProseMirror .video-embed-node.is-selected .video-embed-resize-handle {
+  opacity: 1;
+}
+
+.video-embed-resize-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  cursor: ew-resize;
+  background: transparent;
+}

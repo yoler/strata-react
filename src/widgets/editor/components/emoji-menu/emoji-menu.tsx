@@ -1,14 +1,10 @@
+import type { EmojiItem } from "@tiptap/extension-emoji";
 import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
 import { Command, CommandEmpty, CommandItem, CommandList } from "@/shared/ui/command";
 
-export type EmojiSuggestionItem = {
-  name: string;
-  emoji: string;
-  keywords: string[];
-  src: string | null;
-};
+import "./emoji-menu.css";
 
 export type EmojiMenuHandle = {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean;
@@ -16,8 +12,8 @@ export type EmojiMenuHandle = {
 };
 
 type EmojiMenuProps = {
-  command: (item: EmojiSuggestionItem) => void;
-  items: EmojiSuggestionItem[];
+  command: (item: EmojiItem) => void;
+  items: EmojiItem[];
 };
 
 export const EmojiMenu = forwardRef<EmojiMenuHandle, EmojiMenuProps>(({ command, items }, ref) => {
@@ -117,8 +113,8 @@ export const EmojiMenu = forwardRef<EmojiMenuHandle, EmojiMenuProps>(({ command,
               value={item.name}
               className="tiptap-emoji-card-item !m-0 !size-8 !gap-0 !rounded-md !p-0 !grid place-items-center"
             >
-              {item.src ? (
-                <img className="tiptap-emoji-card-symbol" src={item.src} alt={item.emoji} draggable="false" aria-hidden="true" />
+              {item.fallbackImage ? (
+                <img className="tiptap-emoji-card-symbol" src={item.fallbackImage} alt={item.emoji ?? item.name} draggable="false" aria-hidden="true" />
               ) : (
                 <span className="tiptap-emoji-card-symbol" aria-hidden="true">
                   {item.emoji}

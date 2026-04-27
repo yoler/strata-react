@@ -159,9 +159,7 @@ export const EditorImage = Image.extend({
       const imageElement = document.createElement("img");
       syncImageAttributes(imageElement, HTMLAttributes);
 
-      let nodeView: ResizableNodeView;
-
-      nodeView = new ResizableNodeView({
+      const nodeView: ResizableNodeView = new ResizableNodeView({
         element: imageElement,
         editor: this.editor,
         node,

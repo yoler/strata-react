@@ -1,9 +1,7 @@
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { Check, ChevronDown, Copy, CopyCheck } from "lucide-react";
 import { useState } from "react";
 
-import { CODE_BLOCK_LANGUAGES, getCodeBlockLanguageLabel } from "../lib/code-block";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +9,10 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 
-function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
+import { CODE_BLOCK_LANGUAGES, getCodeBlockLanguageLabel } from "../../lib/code-block";
+import "./code-block.css";
+
+export function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
   const [copied, setCopied] = useState(false);
   const language = (node.attrs.language as string | null | undefined) ?? null;
 
@@ -64,9 +65,3 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-
-export const EditorCodeBlock = CodeBlockLowlight.extend({
-  addNodeView() {
-    return ReactNodeViewRenderer(CodeBlockNodeView);
-  },
-});

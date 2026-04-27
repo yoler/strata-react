@@ -1,3 +1,4 @@
+import type { EmojiItem } from "@tiptap/extension-emoji";
 import twemoji from "@twemoji/api";
 
 import { EMOJI_CATALOG } from "./emoji-catalog";
@@ -20,21 +21,15 @@ const twemojiAssetMap = Object.entries(twemojiSvgAssets).reduce<Record<string, s
   return accumulator;
 }, {});
 
-export type EmojiOption = {
-  emoji: string;
-  name: string;
-  keywords: string[];
-  src: string | null;
-};
-
-export const getEmojiCodepoint = (value: string) => twemoji.convert.toCodePoint(value).toLowerCase();
-
 export const getTwemojiAssetUrl = (value: string) => {
-  const codepoint = getEmojiCodepoint(value);
+  const codepoint = twemoji.convert.toCodePoint(value).toLowerCase();
   return twemojiAssetMap[codepoint] ?? null;
 };
 
-export const EMOJI_OPTIONS: EmojiOption[] = EMOJI_CATALOG.map((item) => ({
-  ...item,
-  src: getTwemojiAssetUrl(item.emoji),
+export const TWEMOJI_OPTIONS: EmojiItem[] = EMOJI_CATALOG.map((item) => ({
+  emoji: item.emoji,
+  fallbackImage: getTwemojiAssetUrl(item.emoji) ?? undefined,
+  name: item.name,
+  shortcodes: [item.name],
+  tags: item.keywords,
 }));

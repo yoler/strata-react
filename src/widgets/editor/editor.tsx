@@ -1,128 +1,33 @@
-﻿import { Color } from "@tiptap/extension-color";
-import FileHandler from "@tiptap/extension-file-handler";
-import Highlight from "@tiptap/extension-highlight";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import Subscript from "@tiptap/extension-subscript";
-import Superscript from "@tiptap/extension-superscript";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
-import TextAlign from "@tiptap/extension-text-align";
-import { TextStyle } from "@tiptap/extension-text-style";
-import Underline from "@tiptap/extension-underline";
-import { type Editor, EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useState } from "react";
+import type { Editor } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { BubbleMenu } from "./components/bubble-menu";
-import { DragHandle } from "./components/drag-handle";
-import { ImageMenu } from "./components/image-menu";
-import { TableControls } from "./components/table-controls";
-import { BlockStyle } from "./extensions/block-style-extension";
-import { EditorCodeBlock } from "./extensions/code-block-extension";
-import { EmojiNode } from "./extensions/emoji-node";
-import { EmojiSuggestion } from "./extensions/emoji-suggestion";
-import { EditorHorizontalRule } from "./extensions/horizontal-rule";
-import { EditorImage } from "./extensions/image-extension";
-import { createPendingImageUploadBatch, ImageUploadNode } from "./extensions/image-upload-node";
-import { Indent } from "./extensions/indent-extension";
-import { SlashCommand } from "./extensions/slash-command";
-import { EditorTableCell, EditorTableHeader } from "./extensions/table-extensions";
-import { VideoEmbed, VideoEmbedInput } from "./extensions/video-embed";
-import { DEFAULT_CODE_BLOCK_LANGUAGE, detectCodeBlockLanguage, lowlight } from "./lib/code-block";
-import "./styles.css";
+import { BubbleMenu } from "./components/bubble-menu/bubble-menu";
+import { DragHandle } from "./components/drag-handle/drag-handle";
+import { ImageMenu } from "./components/image-menu/image-menu";
+import { TableControls } from "./components/table-controls/table-controls";
+import { IMAGE_UPLOAD_ACCEPTED_MIME_TYPES } from "./config/uploads";
+import { createPendingImageUploadBatch } from "./extensions/image-upload/extension";
+import { useCodeBlockPasteDetection } from "./hooks/use-code-block-paste-detection";
+import { useEditorContentSync } from "./hooks/use-editor-content-sync";
+import { createEditorExtensions } from "./lib/create-editor-extensions";
+import "./styles/tokens.css";
+import "./styles/content.css";
 import type { NotionEditorProps } from "./types";
 
-export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }: NotionEditorProps) {
+export function NotionEditor({
+  initialContent,
+  onChange,
+  uploadImage,
+  readOnly,
+}: NotionEditorProps) {
   const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        codeBlock: false,
-        horizontalRule: false,
-        link: false,
-        underline: false,
-        dropcursor: {
-          color: "rgba(35, 131, 226, 0.4)",
-          width: 3,
-        },
-      }),
-      EditorHorizontalRule,
-      Placeholder.configure({
-        placeholder: () => "Write, type '/' for commands...",
-        emptyNodeClass: "is-empty",
-        emptyEditorClass: "is-editor-empty",
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      EditorImage.configure({
-        resize: {
-          enabled: true,
-          directions: ["left", "right"],
-          minWidth: 120,
-          minHeight: 80,
-          alwaysPreserveAspectRatio: true,
-        },
-      }),
-      ImageUploadNode.configure({
-        upload: uploadImage,
-      }),
-      VideoEmbed,
-      VideoEmbedInput,
-      EditorCodeBlock.configure({
-        lowlight,
-        defaultLanguage: DEFAULT_CODE_BLOCK_LANGUAGE,
-        enableTabIndentation: true,
-        tabSize: 2,
-        HTMLAttributes: {
-          class: "code-block",
-        },
-      }),
-      EmojiNode,
-      EmojiSuggestion,
-      SlashCommand,
-      FileHandler.configure({
-        allowedMimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
-        onPaste: (currentEditor, files) => {
-          const uploadBatchId = createPendingImageUploadBatch(files);
+  const editorRef = useRef<Editor | null>(null);
+  const extensions = useMemo(() => createEditorExtensions({ uploadImage }), [uploadImage]);
+  const handleCodeBlockPaste = useCodeBlockPasteDetection({ editorRef });
 
-          currentEditor
-            .chain()
-            .focus()
-            .insertContent({
-              type: "imageUpload",
-              attrs: { uploadBatchId },
-            })
-            .run();
-        },
-      }),
-      TextStyle,
-      Color,
-      Highlight.configure({ multicolor: true }),
-      BlockStyle,
-      Underline,
-      Superscript,
-      Subscript,
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-      }),
-      Indent,
-      Link.configure({
-        autolink: true,
-        defaultProtocol: "https",
-        openOnClick: false,
-      }),
-      Table.configure({
-        resizable: true,
-        allowTableNodeSelection: true,
-      }),
-      TableRow,
-      EditorTableHeader,
-      EditorTableCell,
-    ],
+  const editor = useEditor({
+    extensions,
     content: initialContent,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
@@ -139,7 +44,7 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
         }
 
         const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
-          ["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.type),
+          IMAGE_UPLOAD_ACCEPTED_MIME_TYPES.includes(file.type as (typeof IMAGE_UPLOAD_ACCEPTED_MIME_TYPES)[number]),
         );
 
         if (!files.length) {
@@ -162,79 +67,15 @@ export function NotionEditor({ initialContent, onChange, uploadImage, readOnly }
           .run();
         return true;
       },
-      handlePaste: (view, event) => {
-        if (event.clipboardData?.files.length) {
-          return false;
-        }
-
-        const text = event.clipboardData?.getData("text/plain");
-        const { selection } = view.state;
-        const codeBlockNode = selection.$from.parent.type.name === "codeBlock" ? selection.$from.parent : null;
-
-        if (!codeBlockNode || !text) {
-          return false;
-        }
-
-        const shouldAutoDetect =
-          codeBlockNode.textContent.trim().length === 0 ||
-          (selection.from === selection.$from.start() && selection.to === selection.$from.end());
-
-        event.preventDefault();
-        view.dispatch(view.state.tr.insertText(text, selection.from, selection.to).scrollIntoView());
-
-        if (!shouldAutoDetect) {
-          return true;
-        }
-
-        requestAnimationFrame(() => {
-          if (!editor || editor.isDestroyed) {
-            return;
-          }
-
-          const { selection: currentSelection } = editor.state;
-          const currentCodeBlock =
-            currentSelection.$from.parent.type.name === "codeBlock" ? currentSelection.$from.parent : null;
-
-          if (!currentCodeBlock) {
-            return;
-          }
-
-          const nextLanguage = detectCodeBlockLanguage(currentCodeBlock.textContent);
-          const currentLanguage =
-            (currentCodeBlock.attrs.language as string | undefined) ?? DEFAULT_CODE_BLOCK_LANGUAGE;
-
-          if (nextLanguage === currentLanguage) {
-            return;
-          }
-
-          editor.chain().focus().updateAttributes("codeBlock", { language: nextLanguage }).run();
-        });
-
-        return true;
-      },
+      handlePaste: handleCodeBlockPaste,
     },
   });
 
   useEffect(() => {
-    if (!editor || initialContent === undefined) {
-      return;
-    }
+    editorRef.current = editor;
+  }, [editor]);
 
-    if (typeof initialContent === "string") {
-      if (editor.getHTML() === initialContent) {
-        return;
-      }
-    } else {
-      const currentContent = JSON.stringify(editor.getJSON());
-      const nextContent = JSON.stringify(initialContent);
-
-      if (currentContent === nextContent) {
-        return;
-      }
-    }
-
-    editor.commands.setContent(initialContent, { emitUpdate: false });
-  }, [editor, initialContent]);
+  useEditorContentSync({ editor, initialContent });
 
   if (!editor) {
     return null;

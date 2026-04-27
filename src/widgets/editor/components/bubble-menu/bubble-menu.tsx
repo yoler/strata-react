@@ -1,7 +1,6 @@
 import { NodeSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
-import { useEditorState } from "@tiptap/react";
 import { BubbleMenu as TiptapBubbleMenu } from "@tiptap/react/menus";
 import {
   AlignCenter,
@@ -46,7 +45,11 @@ import {
 } from "react";
 
 import { cn } from "@/shared/lib/utils";
-import { getSelectionContainerBlockTarget, replaceContainerBlock, type TurnIntoValue } from "../lib/turn-into";
+
+import { editorBackgroundColors, editorTextColors, type EditorColorItem } from "../../config/colors";
+import { TURN_INTO_OPTIONS } from "../../config/turn-into";
+import { getSelectionContainerBlockTarget, replaceContainerBlock, type TurnIntoValue } from "../../lib/turn-into";
+import "./bubble-menu.css";
 
 type EditorBubbleMenuProps = {
   editor: Editor;
@@ -67,13 +70,32 @@ type MenuPosition = {
   top: number;
 };
 
-type ColorItem = {
-  label: string;
-  value: string;
+type RecentColorItem = EditorColorItem & {
+  kind: "highlight" | "text";
 };
 
-type RecentColorItem = ColorItem & {
-  kind: "highlight" | "text";
+type BubbleMenuFormattingState = {
+  currentHighlightColor: string;
+  currentTextColor: string;
+  isBlockquote: boolean;
+  isBold: boolean;
+  isBulletList: boolean;
+  isCode: boolean;
+  isHeading1: boolean;
+  isHeading2: boolean;
+  isHeading3: boolean;
+  isItalic: boolean;
+  isLink: boolean;
+  isOrderedList: boolean;
+  isStrike: boolean;
+  isSubscript: boolean;
+  isSuperscript: boolean;
+  isTaskList: boolean;
+  isTextAlignCenter: boolean;
+  isTextAlignJustify: boolean;
+  isTextAlignLeft: boolean;
+  isTextAlignRight: boolean;
+  isUnderline: boolean;
 };
 
 const TEXT_BUBBLE_MENU_PLUGIN_KEY = "text-bubble-menu";
@@ -87,31 +109,17 @@ const floatingMenuSizeByKind: Record<Exclude<MenuKind, null>, { height: number; 
   "turn-into": { height: 304, width: 164 },
 };
 
-const textColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#6b7280" },
-  { label: "Brown", value: "#92400e" },
-  { label: "Orange", value: "#ea580c" },
-  { label: "Yellow", value: "#ca8a04" },
-  { label: "Green", value: "#16a34a" },
-  { label: "Blue", value: "#2563eb" },
-  { label: "Purple", value: "#7c3aed" },
-  { label: "Pink", value: "#db2777" },
-  { label: "Red", value: "#dc2626" },
-];
-
-const highlightColors: ColorItem[] = [
-  { label: "Default", value: "" },
-  { label: "Gray", value: "#f3f4f6" },
-  { label: "Brown", value: "#f3e8dc" },
-  { label: "Orange", value: "#ffedd5" },
-  { label: "Yellow", value: "#fef9c3" },
-  { label: "Green", value: "#dcfce7" },
-  { label: "Blue", value: "#dbeafe" },
-  { label: "Purple", value: "#ede9fe" },
-  { label: "Pink", value: "#fce7f3" },
-  { label: "Red", value: "#fee2e2" },
-];
+const turnIntoIconByValue: Record<TurnIntoValue, TurnIntoItem["icon"]> = {
+  text: Pilcrow,
+  "heading-1": Heading1,
+  "heading-2": Heading2,
+  "heading-3": Heading3,
+  "bullet-list": List,
+  "numbered-list": ListOrdered,
+  "todo-list": ListTodo,
+  quote: Quote,
+  "code-block": Code,
+};
 
 const blockedNodeNames = new Set([
   "imageUpload",
@@ -181,23 +189,12 @@ function isBlockedSelection(editor: Editor) {
   return containsBlockedNode;
 }
 
-function getCurrentBlockLabel(editor: Editor) {
-  if (editor.isActive("heading", { level: 1 })) return "Heading 1";
-  if (editor.isActive("heading", { level: 2 })) return "Heading 2";
-  if (editor.isActive("heading", { level: 3 })) return "Heading 3";
-  if (editor.isActive("bulletList")) return "Bullet list";
-  if (editor.isActive("orderedList")) return "Numbered list";
-  if (editor.isActive("taskList")) return "To-do list";
-  if (editor.isActive("blockquote")) return "Quote";
-  return "Text";
-}
-
-function getColorLabel(value: string, palette: ColorItem[]) {
+function getColorLabel(value: string, palette: EditorColorItem[]) {
   return palette.find((color) => color.value.toLowerCase() === value.toLowerCase())?.label ?? value;
 }
 
 function getRecentColorLabel(color: RecentColorItem) {
-  return getColorLabel(color.value, color.kind === "text" ? textColors : highlightColors);
+  return getColorLabel(color.value, color.kind === "text" ? editorTextColors : editorBackgroundColors);
 }
 
 function readRecentColors() {
@@ -242,6 +239,32 @@ function writeRecentColors(colors: RecentColorItem[]) {
   window.localStorage.setItem(RECENT_COLORS_STORAGE_KEY, JSON.stringify(colors));
 }
 
+function getBubbleMenuFormattingState(editor: Editor): BubbleMenuFormattingState {
+  return {
+    currentHighlightColor: (editor.getAttributes("highlight").color as string | undefined) ?? "",
+    currentTextColor: (editor.getAttributes("textStyle").color as string | undefined) ?? "",
+    isBlockquote: editor.isActive("blockquote"),
+    isBold: editor.isActive("bold"),
+    isBulletList: editor.isActive("bulletList"),
+    isCode: editor.isActive("code"),
+    isHeading1: editor.isActive("heading", { level: 1 }),
+    isHeading2: editor.isActive("heading", { level: 2 }),
+    isHeading3: editor.isActive("heading", { level: 3 }),
+    isItalic: editor.isActive("italic"),
+    isLink: editor.isActive("link"),
+    isOrderedList: editor.isActive("orderedList"),
+    isStrike: editor.isActive("strike"),
+    isSubscript: editor.isActive("subscript"),
+    isSuperscript: editor.isActive("superscript"),
+    isTaskList: editor.isActive("taskList"),
+    isTextAlignCenter: editor.isActive({ textAlign: "center" }),
+    isTextAlignJustify: editor.isActive({ textAlign: "justify" }),
+    isTextAlignLeft: editor.isActive({ textAlign: "left" }),
+    isTextAlignRight: editor.isActive({ textAlign: "right" }),
+    isUnderline: editor.isActive("underline"),
+  };
+}
+
 export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const turnIntoRef = useRef<HTMLButtonElement | null>(null);
@@ -255,7 +278,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   const [menuPosition, setMenuPosition] = useState<MenuPosition>({ left: 0, top: 0 });
   const [linkUrl, setLinkUrl] = useState("");
   const [recentColors, setRecentColors] = useState<RecentColorItem[]>(() => readRecentColors());
+  const [isBubbleMenuVisible, setIsBubbleMenuVisible] = useState(false);
+  const [formattingState, setFormattingState] = useState<BubbleMenuFormattingState>(() =>
+    getBubbleMenuFormattingState(editor),
+  );
   const handleBubbleMenuHide = useCallback(() => {
+    setIsBubbleMenuVisible(false);
     setOpenMenu(null);
   }, []);
 
@@ -273,6 +301,14 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       const isChildOfMenu = element.contains(document.activeElement);
       const hasEditorFocus = view.hasFocus() || isChildOfMenu || isSelectionInsideEditor(view);
 
+      if (view.dom.querySelector("td.selectedCell, th.selectedCell")) {
+        return false;
+      }
+
+      if (selection instanceof CellSelection || selection instanceof NodeSelection) {
+        return false;
+      }
+
       if (!hasEditorFocus || selection.empty || isEmptyTextBlock || !currentEditor.isEditable) {
         return false;
       }
@@ -286,33 +322,21 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     [isSelectionSettled],
   );
 
-  const state = useEditorState({
-    editor,
-    selector: ({ editor: currentEditor }) => ({
-      blockLabel: getCurrentBlockLabel(currentEditor),
-      isBlockquote: currentEditor.isActive("blockquote"),
-      isBold: currentEditor.isActive("bold"),
-      isBulletList: currentEditor.isActive("bulletList"),
-      isCode: currentEditor.isActive("code"),
-      isHeading1: currentEditor.isActive("heading", { level: 1 }),
-      isHeading2: currentEditor.isActive("heading", { level: 2 }),
-      isHeading3: currentEditor.isActive("heading", { level: 3 }),
-      isItalic: currentEditor.isActive("italic"),
-      isLink: currentEditor.isActive("link"),
-      isOrderedList: currentEditor.isActive("orderedList"),
-      isSubscript: currentEditor.isActive("subscript"),
-      isSuperscript: currentEditor.isActive("superscript"),
-      isTextAlignCenter: currentEditor.isActive({ textAlign: "center" }),
-      isTextAlignJustify: currentEditor.isActive({ textAlign: "justify" }),
-      isTextAlignLeft: currentEditor.isActive({ textAlign: "left" }),
-      isTextAlignRight: currentEditor.isActive({ textAlign: "right" }),
-      currentHighlightColor: (currentEditor.getAttributes("highlight").color as string | undefined) ?? "",
-      currentTextColor: (currentEditor.getAttributes("textStyle").color as string | undefined) ?? "",
-      isStrike: currentEditor.isActive("strike"),
-      isTaskList: currentEditor.isActive("taskList"),
-      isUnderline: currentEditor.isActive("underline"),
-    }),
-  });
+  const currentBlockLabel = formattingState.isHeading1
+    ? "Heading 1"
+    : formattingState.isHeading2
+      ? "Heading 2"
+      : formattingState.isHeading3
+        ? "Heading 3"
+        : formattingState.isBulletList
+          ? "Bullet list"
+          : formattingState.isOrderedList
+            ? "Numbered list"
+            : formattingState.isTaskList
+              ? "To-do list"
+              : formattingState.isBlockquote
+                ? "Quote"
+                : "Text";
 
   const keepSelection = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -351,6 +375,29 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     });
     setOpenMenu((current) => (current === kind ? null : kind));
   };
+
+  useEffect(() => {
+    if (!isBubbleMenuVisible && !openMenu) {
+      return;
+    }
+
+    const updateFormattingState = () => {
+      setFormattingState((current) => {
+        const next = getBubbleMenuFormattingState(editor);
+
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+      });
+    };
+
+    updateFormattingState();
+    editor.on("selectionUpdate", updateFormattingState);
+    editor.on("transaction", updateFormattingState);
+
+    return () => {
+      editor.off("selectionUpdate", updateFormattingState);
+      editor.off("transaction", updateFormattingState);
+    };
+  }, [editor, isBubbleMenuVisible, openMenu]);
 
   useEffect(() => {
     let editorElement: HTMLElement | null = null;
@@ -503,74 +550,32 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
   );
 
   const turnIntoItems: TurnIntoItem[] = useMemo(
-    () => [
-      {
-        icon: Pilcrow,
-        isActive: state.blockLabel === "Text",
-        label: "Text",
-        run: () => applyTurnInto("text"),
-        value: "text",
-      },
-      {
-        icon: Heading1,
-        isActive: state.isHeading1,
-        label: "Heading 1",
-        run: () => applyTurnInto("heading-1"),
-        value: "heading-1",
-      },
-      {
-        icon: Heading2,
-        isActive: state.isHeading2,
-        label: "Heading 2",
-        run: () => applyTurnInto("heading-2"),
-        value: "heading-2",
-      },
-      {
-        icon: Heading3,
-        isActive: state.isHeading3,
-        label: "Heading 3",
-        run: () => applyTurnInto("heading-3"),
-        value: "heading-3",
-      },
-      {
-        icon: List,
-        isActive: state.isBulletList,
-        label: "Bullet list",
-        run: () => applyTurnInto("bullet-list"),
-        value: "bullet-list",
-      },
-      {
-        icon: ListOrdered,
-        isActive: state.isOrderedList,
-        label: "Numbered list",
-        run: () => applyTurnInto("numbered-list"),
-        value: "numbered-list",
-      },
-      {
-        icon: ListTodo,
-        isActive: state.isTaskList,
-        label: "To-do list",
-        run: () => applyTurnInto("todo-list"),
-        value: "todo-list",
-      },
-      {
-        icon: Quote,
-        isActive: state.isBlockquote,
-        label: "Quote",
-        run: () => applyTurnInto("quote"),
-        value: "quote",
-      },
-    ],
+    () =>
+      TURN_INTO_OPTIONS.filter((item) => item.value !== "code-block").map((item) => ({
+        icon: turnIntoIconByValue[item.value],
+        isActive:
+          (item.value === "text" && currentBlockLabel === "Text") ||
+          (item.value === "heading-1" && formattingState.isHeading1) ||
+          (item.value === "heading-2" && formattingState.isHeading2) ||
+          (item.value === "heading-3" && formattingState.isHeading3) ||
+          (item.value === "bullet-list" && formattingState.isBulletList) ||
+          (item.value === "numbered-list" && formattingState.isOrderedList) ||
+          (item.value === "todo-list" && formattingState.isTaskList) ||
+          (item.value === "quote" && formattingState.isBlockquote),
+        label: item.label,
+        run: () => applyTurnInto(item.value),
+        value: item.value,
+      })),
     [
       applyTurnInto,
-      state.blockLabel,
-      state.isBlockquote,
-      state.isBulletList,
-      state.isHeading1,
-      state.isHeading2,
-      state.isHeading3,
-      state.isOrderedList,
-      state.isTaskList,
+      currentBlockLabel,
+      formattingState.isBlockquote,
+      formattingState.isBulletList,
+      formattingState.isHeading1,
+      formattingState.isHeading2,
+      formattingState.isHeading3,
+      formattingState.isOrderedList,
+      formattingState.isTaskList,
     ],
   );
 
@@ -649,7 +654,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     const nextRecentColors = [
       {
         kind,
-        label: getColorLabel(normalizedValue, kind === "text" ? textColors : highlightColors),
+        label: getColorLabel(normalizedValue, kind === "text" ? editorTextColors : editorBackgroundColors),
         value: normalizedValue,
       },
       ...recentColors.filter((color) => color.kind !== kind || color.value !== normalizedValue),
@@ -668,6 +673,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         placement: "top",
         offset: 12,
         strategy: "fixed",
+        onShow: () => setIsBubbleMenuVisible(true),
         onHide: handleBubbleMenuHide,
       }}
       appendTo={() => document.body}
@@ -680,7 +686,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       <div className="tiptap-toolbar-group" role="group">
         <button
           ref={turnIntoRef}
-          aria-label={`Turn into (current: ${state.blockLabel})`}
+              aria-label={`Turn into (current: ${currentBlockLabel})`}
           className="tiptap-button tiptap-button-turn-into"
           data-style="ghost"
           data-tooltip="Turn into"
@@ -688,7 +694,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           onClick={() => openFloatingMenu("turn-into", turnIntoRef.current)}
           type="button"
         >
-          <span className="tiptap-button-text">{state.blockLabel}</span>
+              <span className="tiptap-button-text">{currentBlockLabel}</span>
           <ChevronDown className="tiptap-button-dropdown-small size-3.5" strokeWidth={1.8} />
         </button>
       </div>
@@ -698,9 +704,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       <div className="tiptap-toolbar-group" role="group">
         <button
           aria-label="Bold"
-          aria-pressed={state.isBold}
-          className={cn("tiptap-button", state.isBold && "is-active")}
-          data-active-state={state.isBold ? "on" : "off"}
+          aria-pressed={formattingState.isBold}
+          className={cn("tiptap-button", formattingState.isBold && "is-active")}
+          data-active-state={formattingState.isBold ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Bold"
           onMouseDown={keepSelection}
@@ -711,9 +717,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         </button>
         <button
           aria-label="Italic"
-          aria-pressed={state.isItalic}
-          className={cn("tiptap-button", state.isItalic && "is-active")}
-          data-active-state={state.isItalic ? "on" : "off"}
+          aria-pressed={formattingState.isItalic}
+          className={cn("tiptap-button", formattingState.isItalic && "is-active")}
+          data-active-state={formattingState.isItalic ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Italic"
           onMouseDown={keepSelection}
@@ -724,9 +730,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         </button>
         <button
           aria-label="Underline"
-          aria-pressed={state.isUnderline}
-          className={cn("tiptap-button", state.isUnderline && "is-active")}
-          data-active-state={state.isUnderline ? "on" : "off"}
+          aria-pressed={formattingState.isUnderline}
+          className={cn("tiptap-button", formattingState.isUnderline && "is-active")}
+          data-active-state={formattingState.isUnderline ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Underline"
           onMouseDown={keepSelection}
@@ -737,9 +743,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         </button>
         <button
           aria-label="Strike"
-          aria-pressed={state.isStrike}
-          className={cn("tiptap-button", state.isStrike && "is-active")}
-          data-active-state={state.isStrike ? "on" : "off"}
+          aria-pressed={formattingState.isStrike}
+          className={cn("tiptap-button", formattingState.isStrike && "is-active")}
+          data-active-state={formattingState.isStrike ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Strike"
           onMouseDown={keepSelection}
@@ -750,9 +756,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         </button>
         <button
           aria-label="Code"
-          aria-pressed={state.isCode}
-          className={cn("tiptap-button", state.isCode && "is-active")}
-          data-active-state={state.isCode ? "on" : "off"}
+          aria-pressed={formattingState.isCode}
+          className={cn("tiptap-button", formattingState.isCode && "is-active")}
+          data-active-state={formattingState.isCode ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Code"
           onMouseDown={keepSelection}
@@ -769,9 +775,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         <button
           ref={linkRef}
           aria-label="Link"
-          aria-pressed={state.isLink}
-          className={cn("tiptap-button", state.isLink && "is-active")}
-          data-active-state={state.isLink ? "on" : "off"}
+          aria-pressed={formattingState.isLink}
+          className={cn("tiptap-button", formattingState.isLink && "is-active")}
+          data-active-state={formattingState.isLink ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Link"
           onMouseDown={keepSelection}
@@ -783,9 +789,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         <button
           ref={colorRef}
           aria-label="Text color"
-          aria-pressed={Boolean(state.currentTextColor || state.currentHighlightColor)}
-          className={cn("tiptap-button tiptap-button-color", (state.currentTextColor || state.currentHighlightColor) && "is-active")}
-          data-active-state={state.currentTextColor || state.currentHighlightColor ? "on" : "off"}
+          aria-pressed={Boolean(formattingState.currentTextColor || formattingState.currentHighlightColor)}
+          className={cn(
+            "tiptap-button tiptap-button-color",
+            (formattingState.currentTextColor || formattingState.currentHighlightColor) && "is-active",
+          )}
+          data-active-state={formattingState.currentTextColor || formattingState.currentHighlightColor ? "on" : "off"}
           data-style="ghost"
           data-tooltip="Text color"
           onMouseDown={keepSelection}
@@ -795,8 +804,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           <span
             className="tiptap-button-color-indicator"
             style={{
-              backgroundColor: state.currentHighlightColor || undefined,
-              color: state.currentTextColor || undefined,
+              backgroundColor: formattingState.currentHighlightColor || undefined,
+              color: formattingState.currentTextColor || undefined,
             }}
           >
             A
@@ -879,9 +888,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
 
                             setOpenMenu(null);
                           }}
-                          style={color.kind === "text" ? { color: color.value } : undefined}
-                          type="button"
-                        >
+                      style={color.kind === "text" ? { color: color.value } : undefined}
+                      type="button"
+                    >
                           {color.kind === "text" ? (
                             <span className="text-bubble-color-swatch-label">A</span>
                           ) : (
@@ -895,7 +904,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
 
                 <div className="text-bubble-menu-dropdown-label">Text Color</div>
                 <div className="text-bubble-color-grid">
-                  {textColors.map((color) => (
+                    {editorTextColors.map((color) => (
                     <button
                       key={`text-${color.label}`}
                       aria-label={color.label}
@@ -915,7 +924,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
 
                 <div className="text-bubble-menu-dropdown-label">Highlight Color</div>
                 <div className="text-bubble-color-grid">
-                  {highlightColors.map((color) => (
+                    {editorBackgroundColors.map((color) => (
                     <button
                       key={`highlight-${color.label}`}
                       aria-label={color.label}
@@ -958,7 +967,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <button
                   aria-label="Open link"
                   className="text-bubble-link-action"
-                  disabled={!linkUrl.trim() && !state.isLink}
+                  disabled={!linkUrl.trim() && !formattingState.isLink}
                   onMouseDown={keepSelection}
                   onClick={openCurrentLink}
                   type="button"
@@ -968,7 +977,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <button
                   aria-label="Remove link"
                   className="text-bubble-link-action"
-                  disabled={!state.isLink}
+                  disabled={!formattingState.isLink}
                   onMouseDown={keepSelection}
                   onClick={removeLink}
                   type="button"
@@ -983,8 +992,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                 <div className="text-bubble-more-grid" role="group" aria-label="More text formatting">
                   <button
                     aria-label="Superscript"
-                    aria-pressed={state.isSuperscript}
-                    className={cn("text-bubble-more-button", state.isSuperscript && "is-active")}
+                    aria-pressed={formattingState.isSuperscript}
+                    className={cn("text-bubble-more-button", formattingState.isSuperscript && "is-active")}
                     data-tooltip="Superscript"
                     onMouseDown={keepSelection}
                     onClick={() => {
@@ -997,8 +1006,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </button>
                   <button
                     aria-label="Subscript"
-                    aria-pressed={state.isSubscript}
-                    className={cn("text-bubble-more-button", state.isSubscript && "is-active")}
+                    aria-pressed={formattingState.isSubscript}
+                    className={cn("text-bubble-more-button", formattingState.isSubscript && "is-active")}
                     data-tooltip="Subscript"
                     onMouseDown={keepSelection}
                     onClick={() => {
@@ -1011,8 +1020,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </button>
                   <button
                     aria-label="Align left"
-                    aria-pressed={state.isTextAlignLeft}
-                    className={cn("text-bubble-more-button", state.isTextAlignLeft && "is-active")}
+                    aria-pressed={formattingState.isTextAlignLeft}
+                    className={cn("text-bubble-more-button", formattingState.isTextAlignLeft && "is-active")}
                     data-tooltip="Align left"
                     onMouseDown={keepSelection}
                     onClick={() => {
@@ -1025,8 +1034,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </button>
                   <button
                     aria-label="Align center"
-                    aria-pressed={state.isTextAlignCenter}
-                    className={cn("text-bubble-more-button", state.isTextAlignCenter && "is-active")}
+                    aria-pressed={formattingState.isTextAlignCenter}
+                    className={cn("text-bubble-more-button", formattingState.isTextAlignCenter && "is-active")}
                     data-tooltip="Align center"
                     onMouseDown={keepSelection}
                     onClick={() => {
@@ -1039,8 +1048,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </button>
                   <button
                     aria-label="Align right"
-                    aria-pressed={state.isTextAlignRight}
-                    className={cn("text-bubble-more-button", state.isTextAlignRight && "is-active")}
+                    aria-pressed={formattingState.isTextAlignRight}
+                    className={cn("text-bubble-more-button", formattingState.isTextAlignRight && "is-active")}
                     data-tooltip="Align right"
                     onMouseDown={keepSelection}
                     onClick={() => {
@@ -1053,8 +1062,8 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </button>
                   <button
                     aria-label="Align justify"
-                    aria-pressed={state.isTextAlignJustify}
-                    className={cn("text-bubble-more-button", state.isTextAlignJustify && "is-active")}
+                    aria-pressed={formattingState.isTextAlignJustify}
+                    className={cn("text-bubble-more-button", formattingState.isTextAlignJustify && "is-active")}
                     data-tooltip="Align justify"
                     onMouseDown={keepSelection}
                     onClick={() => {

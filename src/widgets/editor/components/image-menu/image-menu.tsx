@@ -5,6 +5,8 @@ import { AlignCenter, AlignLeft, AlignRight, Download, Maximize2, RotateCcw, Tra
 
 import { cn } from "@/shared/lib/utils";
 
+import "./image-menu.css";
+
 type ImageMenuProps = {
   editor: Editor;
 };

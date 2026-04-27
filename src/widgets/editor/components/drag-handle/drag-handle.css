@@ -1,0 +1,48 @@
+.drag-handle-shell {
+  transform: translate3d(0, -3px, 0);
+  transition-property: top;
+  transition-duration: .2s;
+  transition-timing-function: ease-out;
+}
+
+.drag-handle-buttons {
+  transform: translateX(-12px);
+  padding-top: 1px;
+}
+
+.drag-handle-action {
+  color: #24272ec7;
+  background: transparent;
+  border-radius: 9999px;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.drag-handle-action:hover {
+  background: #f1f1ef;
+  color: #6b6b67;
+}
+
+.dark .drag-handle-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.drag-handle-add {
+  cursor: pointer;
+}
+
+.drag-handle-add:hover {
+  background: #f1f1ef;
+  color: #5f5e5b;
+}
+
+.drag-handle-grip {
+  color: #24272ec7;
+}
+
+.drag-handle-grip:hover {
+  background: #f1f1ef;
+  color: #6b6b67;
+}

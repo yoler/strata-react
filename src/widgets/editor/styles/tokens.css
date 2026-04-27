@@ -1,0 +1,70 @@
+.ProseMirror {
+  --tt-selection-color: #e2e2f7;
+  --tt-cursor-color: #3b82f6;
+  --placeholder-color: rgba(115, 115, 115, 0.55);
+  --link-text-color: #4f46e5;
+}
+
+.dark .ProseMirror {
+  --tt-selection-color: #e2e2f7;
+  --tt-cursor-color: #60a5fa;
+  --placeholder-color: rgba(255, 255, 255, 0.32);
+  --tt-checklist-bg-color: rgba(255, 255, 255, 0.06);
+  --tt-checklist-bg-active-color: rgba(255, 255, 255, 0.92);
+  --tt-checklist-border-color: rgba(255, 255, 255, 0.14);
+  --tt-checklist-border-active-color: rgba(255, 255, 255, 0.92);
+  --tt-checklist-check-icon-color: #111827;
+  --tt-checklist-text-active: rgba(255, 255, 255, 0.4);
+  --blockquote-bg-color: rgba(255, 255, 255, 0.88);
+  --tt-inline-code-bg-color: rgba(255, 255, 255, 0.08);
+  --tt-inline-code-text-color: rgba(255, 255, 255, 0.84);
+  --tt-inline-code-border-color: rgba(255, 255, 255, 0.12);
+  --horizontal-rule-color: rgba(255, 255, 255, 0.14);
+  --link-text-color: #818cf8;
+}
+
+.tiptap.ProseMirror {
+  --tt-checklist-bg-color: rgba(15, 23, 42, 0.04);
+  --tt-checklist-bg-active-color: rgba(15, 23, 42, 0.92);
+  --tt-checklist-border-color: rgba(15, 23, 42, 0.1);
+  --tt-checklist-border-active-color: rgba(15, 23, 42, 0.92);
+  --tt-checklist-check-icon-color: #fff;
+  --tt-checklist-text-active: rgba(15, 23, 42, 0.4);
+  --blockquote-bg-color: rgba(15, 23, 42, 0.92);
+  --tt-inline-code-bg-color: rgba(15, 23, 42, 0.06);
+  --tt-inline-code-text-color: rgba(36, 39, 46, 0.82);
+  --tt-inline-code-border-color: rgba(15, 23, 42, 0.1);
+  --horizontal-rule-color: rgba(15, 23, 42, 0.1);
+  --tt-indent-unit: 24px;
+}
+
+:root {
+  --editor-menu-bg-color: rgba(255, 255, 255, 0.98);
+  --editor-menu-border-color: rgba(15, 23, 42, 0.06);
+  --editor-menu-radius: 0.875rem;
+  --editor-menu-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.08);
+  --tt-slash-decoration-bg-color: rgba(15, 23, 42, 0.06);
+  --tt-slash-decoration-color: rgba(15, 23, 42, 0.28);
+  --tiptap-card-bg-color: #fff;
+  --tiptap-card-border-color: rgba(15, 23, 42, 0.06);
+  --tiptap-card-group-label-color: rgba(15, 23, 42, 0.7);
+  --tiptap-card-item-color: rgba(36, 39, 46, 0.78);
+  --tiptap-card-item-icon-color: rgba(36, 39, 46, 0.6);
+}
+
+.dark {
+  --editor-menu-bg-color: rgba(30, 30, 30, 0.98);
+  --editor-menu-border-color: rgba(255, 255, 255, 0.08);
+  --editor-menu-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.28);
+  --tt-slash-decoration-bg-color: rgba(255, 255, 255, 0.08);
+  --tt-slash-decoration-color: rgba(255, 255, 255, 0.28);
+  --tiptap-card-bg-color: rgba(23, 23, 23, 1);
+  --tiptap-card-border-color: rgba(255, 255, 255, 0.08);
+  --tiptap-card-group-label-color: rgba(255, 255, 255, 0.72);
+  --tiptap-card-item-color: rgba(255, 255, 255, 0.82);
+  --tiptap-card-item-icon-color: rgba(255, 255, 255, 0.62);
+}
