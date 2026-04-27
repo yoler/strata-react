@@ -24,7 +24,6 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
     errorMessage,
     handleFiles,
     helperText,
-    isSubmittingUrl,
     isUploading,
     remoteUrl,
     rows,
@@ -93,13 +92,10 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
     <NodeViewWrapper as="div" className="image-upload-node">
       <div
         className={`image-upload-surface ${isDragging ? "is-dragging" : ""} ${isUploading ? "is-uploading" : ""} ${rows.length ? "has-progress-list" : ""}`}
-        onClick={rows.length ? undefined : openPicker}
         onDrop={onDrop}
         onDragLeave={onDragLeave}
         onDragOver={onDragOver}
         onMouseDown={onMouseDown}
-        role="button"
-        tabIndex={0}
       >
         <input ref={inputRef} accept={accept} className="sr-only" multiple onChange={onInputChange} type="file" />
         {rows.length ? (
@@ -142,7 +138,15 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
               </div>
             </div>
             <div className="image-upload-copy">
-              <button className="image-upload-link" type="button">
+              <button
+                className="image-upload-link"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openPicker();
+                }}
+                type="button"
+              >
                 Click to upload
               </button>
               <span className="image-upload-copy-separator"> or drag and drop</span>
@@ -167,7 +171,6 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
                 />
                 <button
                   className="image-upload-url-button"
-                  disabled={isSubmittingUrl || !remoteUrl.trim()}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();

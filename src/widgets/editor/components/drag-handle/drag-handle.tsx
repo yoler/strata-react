@@ -29,6 +29,7 @@ type MenuTarget = {
 };
 
 type OpenSubMenu = "block-color" | "block-turn-into" | "table-alignment" | "table-color" | null;
+const TABLE_COLUMN_MIN_WIDTH = 120;
 
 const turnIntoIconByValue: Record<TurnIntoValue, typeof Pilcrow> = {
   text: Pilcrow,
@@ -581,13 +582,38 @@ export function DragHandle({ editor }: { editor: Editor }) {
     }
 
     const map = TableMap.get(table.node);
+    const columnCount = map.width;
+    const tableDom = editor.view.nodeDOM(table.pos);
+    const wrapper =
+      tableDom instanceof HTMLElement
+        ? tableDom.classList.contains("tableWrapper")
+          ? tableDom
+          : tableDom.closest(".tableWrapper")
+        : null;
+    const targetWidth = Math.max(
+      columnCount * TABLE_COLUMN_MIN_WIDTH,
+      Math.floor(wrapper?.getBoundingClientRect().width ?? editor.view.dom.clientWidth),
+    );
+    const baseColumnWidth = Math.floor(targetWidth / columnCount);
+    const remainder = targetWidth - baseColumnWidth * columnCount;
+    const columnWidths = Array.from({ length: columnCount }, (_, index) => baseColumnWidth + (index < remainder ? 1 : 0));
     const tr = editor.state.tr;
-    map.map.forEach((cellOffset) => {
+    const resizedCells = new Set<number>();
+
+    map.map.forEach((cellOffset, index) => {
+      if (resizedCells.has(cellOffset)) {
+        return;
+      }
+
+      resizedCells.add(cellOffset);
       const cellPos = table.pos + 1 + cellOffset;
       const cell = tr.doc.nodeAt(cellPos);
+      const columnIndex = index % columnCount;
+      const colspan = Number(cell?.attrs.colspan ?? 1);
+      const colwidth = columnWidths.slice(columnIndex, columnIndex + colspan);
 
-      if (cell?.attrs.colwidth) {
-        tr.setNodeMarkup(cellPos, null, { ...cell.attrs, colwidth: null });
+      if (cell) {
+        tr.setNodeMarkup(cellPos, null, { ...cell.attrs, colwidth });
       }
     });
 

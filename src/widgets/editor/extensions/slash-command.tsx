@@ -1,4 +1,4 @@
-import type { Editor, Range } from "@tiptap/core";
+import type { Editor, JSONContent, Range } from "@tiptap/core";
 import { Extension } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
 import { CodeSquare, Heading1, Heading2, Heading3, Image as ImageIcon, List, ListOrdered, ListTodo, Minus, Quote, Smile, Table as TableIcon, Type, Video } from "lucide-react";
@@ -10,6 +10,42 @@ import { DEFAULT_CODE_BLOCK_LANGUAGE } from "../lib/code-block";
 import { createSuggestionPopupRenderer } from "../lib/suggestion-popup";
 
 const slashCommandPluginKey = new PluginKey("slash-command-suggestion");
+const DEFAULT_TABLE_COLUMN_MIN_WIDTH = 120;
+
+function getDefaultTableColumnWidth(editor: Editor, columnCount: number) {
+  const editorElement = editor.view.dom;
+  const editorStyle = window.getComputedStyle(editorElement);
+  const horizontalPadding = parseFloat(editorStyle.paddingLeft) + parseFloat(editorStyle.paddingRight);
+  const availableWidth = Math.max(0, editorElement.clientWidth - horizontalPadding);
+
+  return Math.max(DEFAULT_TABLE_COLUMN_MIN_WIDTH, Math.floor(availableWidth / columnCount));
+}
+
+function createFixedWidthTableContent({
+  cols,
+  columnWidth,
+  rows,
+  withHeaderRow,
+}: {
+  cols: number;
+  columnWidth: number;
+  rows: number;
+  withHeaderRow: boolean;
+}): JSONContent {
+  return {
+    type: "table",
+    content: Array.from({ length: rows }, (_, rowIndex) => ({
+      type: "tableRow",
+      content: Array.from({ length: cols }, () => ({
+        type: withHeaderRow && rowIndex === 0 ? "tableHeader" : "tableCell",
+        attrs: {
+          colwidth: [columnWidth],
+        },
+        content: [{ type: "paragraph" }],
+      })),
+    })),
+  };
+}
 
 function getSuggestionItems({
   query,
@@ -132,7 +168,16 @@ function getSuggestionItems({
       icon: TableIcon,
       group: "Insert",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        const rows = 3;
+        const cols = 3;
+        const table = createFixedWidthTableContent({
+          rows,
+          cols,
+          withHeaderRow: true,
+          columnWidth: getDefaultTableColumnWidth(editor, cols),
+        });
+
+        editor.chain().focus().deleteRange(range).insertContent(table).run();
       },
     },
     {
