@@ -312,6 +312,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       const isChildOfMenu = element.contains(document.activeElement);
       const hasEditorFocus = view.hasFocus() || isChildOfMenu || isSelectionInsideEditor(view);
 
+      if (view.dragging) {
+        return false;
+      }
+
       if (view.dom.querySelector("td.selectedCell, th.selectedCell")) {
         return false;
       }
