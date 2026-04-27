@@ -48,6 +48,7 @@ import { cn } from "@/shared/lib/utils";
 
 import { editorBackgroundColors, editorTextColors, type EditorColorItem } from "../../config/colors";
 import { TURN_INTO_OPTIONS } from "../../config/turn-into";
+import { useEditorI18n } from "../../lib/i18n";
 import { getSelectionContainerBlockTarget, replaceContainerBlock, type TurnIntoValue } from "../../lib/turn-into";
 import "./bubble-menu.css";
 
@@ -193,8 +194,16 @@ function getColorLabel(value: string, palette: EditorColorItem[]) {
   return palette.find((color) => color.value.toLowerCase() === value.toLowerCase())?.label ?? value;
 }
 
+function getColorLabelKey(value: string, palette: EditorColorItem[]) {
+  return palette.find((color) => color.value.toLowerCase() === value.toLowerCase())?.labelKey ?? "colors.default";
+}
+
 function getRecentColorLabel(color: RecentColorItem) {
   return getColorLabel(color.value, color.kind === "text" ? editorTextColors : editorBackgroundColors);
+}
+
+function getRecentColorLabelKey(color: Pick<RecentColorItem, "kind" | "value">) {
+  return getColorLabelKey(color.value, color.kind === "text" ? editorTextColors : editorBackgroundColors);
 }
 
 function readRecentColors() {
@@ -224,6 +233,7 @@ function readRecentColors() {
       .map((color) => ({
         kind: color.kind,
         label: getRecentColorLabel(color),
+        labelKey: getRecentColorLabelKey(color),
         value: color.value.trim().toLowerCase(),
       }));
   } catch {
@@ -266,6 +276,7 @@ function getBubbleMenuFormattingState(editor: Editor): BubbleMenuFormattingState
 }
 
 export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
+  const t = useEditorI18n();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const turnIntoRef = useRef<HTMLButtonElement | null>(null);
   const linkRef = useRef<HTMLButtonElement | null>(null);
@@ -322,21 +333,22 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     [isSelectionSettled],
   );
 
-  const currentBlockLabel = formattingState.isHeading1
-    ? "Heading 1"
+  const currentTurnIntoValue: TurnIntoValue = formattingState.isHeading1
+    ? "heading-1"
     : formattingState.isHeading2
-      ? "Heading 2"
+      ? "heading-2"
       : formattingState.isHeading3
-        ? "Heading 3"
+        ? "heading-3"
         : formattingState.isBulletList
-          ? "Bullet list"
+          ? "bullet-list"
           : formattingState.isOrderedList
-            ? "Numbered list"
+            ? "numbered-list"
             : formattingState.isTaskList
-              ? "To-do list"
+              ? "todo-list"
               : formattingState.isBlockquote
-                ? "Quote"
-                : "Text";
+                ? "quote"
+                : "text";
+  const currentBlockLabel = t(`blocks.${currentTurnIntoValue}`);
 
   const keepSelection = (event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -553,30 +565,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
     () =>
       TURN_INTO_OPTIONS.filter((item) => item.value !== "code-block").map((item) => ({
         icon: turnIntoIconByValue[item.value],
-        isActive:
-          (item.value === "text" && currentBlockLabel === "Text") ||
-          (item.value === "heading-1" && formattingState.isHeading1) ||
-          (item.value === "heading-2" && formattingState.isHeading2) ||
-          (item.value === "heading-3" && formattingState.isHeading3) ||
-          (item.value === "bullet-list" && formattingState.isBulletList) ||
-          (item.value === "numbered-list" && formattingState.isOrderedList) ||
-          (item.value === "todo-list" && formattingState.isTaskList) ||
-          (item.value === "quote" && formattingState.isBlockquote),
-        label: item.label,
+        isActive: item.value === currentTurnIntoValue,
+        label: t(item.labelKey),
         run: () => applyTurnInto(item.value),
         value: item.value,
       })),
-    [
-      applyTurnInto,
-      currentBlockLabel,
-      formattingState.isBlockquote,
-      formattingState.isBulletList,
-      formattingState.isHeading1,
-      formattingState.isHeading2,
-      formattingState.isHeading3,
-      formattingState.isOrderedList,
-      formattingState.isTaskList,
-    ],
+    [applyTurnInto, currentTurnIntoValue, t],
   );
 
   const handleLink = () => {
@@ -655,6 +649,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       {
         kind,
         label: getColorLabel(normalizedValue, kind === "text" ? editorTextColors : editorBackgroundColors),
+        labelKey: getColorLabelKey(normalizedValue, kind === "text" ? editorTextColors : editorBackgroundColors),
         value: normalizedValue,
       },
       ...recentColors.filter((color) => color.kind !== kind || color.value !== normalizedValue),
@@ -681,15 +676,15 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       data-variant="floating"
       ref={toolbarRef}
       role="toolbar"
-      aria-label="toolbar"
+      aria-label={t("aria.toolbar")}
     >
       <div className="tiptap-toolbar-group" role="group">
         <button
           ref={turnIntoRef}
-              aria-label={`Turn into (current: ${currentBlockLabel})`}
+              aria-label={t("bubble.turnIntoCurrent", { current: currentBlockLabel })}
           className="tiptap-button tiptap-button-turn-into"
           data-style="ghost"
-          data-tooltip="Turn into"
+          data-tooltip={t("bubble.turnInto")}
           onMouseDown={keepSelection}
           onClick={() => openFloatingMenu("turn-into", turnIntoRef.current)}
           type="button"
@@ -703,12 +698,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
 
       <div className="tiptap-toolbar-group" role="group">
         <button
-          aria-label="Bold"
+          aria-label={t("bubble.bold")}
           aria-pressed={formattingState.isBold}
           className={cn("tiptap-button", formattingState.isBold && "is-active")}
           data-active-state={formattingState.isBold ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Bold"
+          data-tooltip={t("bubble.bold")}
           onMouseDown={keepSelection}
           onClick={() => editor.chain().focus().toggleBold().run()}
           type="button"
@@ -716,12 +711,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           <Bold className="tiptap-button-icon size-4" strokeWidth={2} />
         </button>
         <button
-          aria-label="Italic"
+          aria-label={t("bubble.italic")}
           aria-pressed={formattingState.isItalic}
           className={cn("tiptap-button", formattingState.isItalic && "is-active")}
           data-active-state={formattingState.isItalic ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Italic"
+          data-tooltip={t("bubble.italic")}
           onMouseDown={keepSelection}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           type="button"
@@ -729,12 +724,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           <Italic className="tiptap-button-icon size-4" strokeWidth={2} />
         </button>
         <button
-          aria-label="Underline"
+          aria-label={t("bubble.underline")}
           aria-pressed={formattingState.isUnderline}
           className={cn("tiptap-button", formattingState.isUnderline && "is-active")}
           data-active-state={formattingState.isUnderline ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Underline"
+          data-tooltip={t("bubble.underline")}
           onMouseDown={keepSelection}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           type="button"
@@ -742,12 +737,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           <Underline className="tiptap-button-icon size-4" strokeWidth={2} />
         </button>
         <button
-          aria-label="Strike"
+          aria-label={t("bubble.strike")}
           aria-pressed={formattingState.isStrike}
           className={cn("tiptap-button", formattingState.isStrike && "is-active")}
           data-active-state={formattingState.isStrike ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Strike"
+          data-tooltip={t("bubble.strike")}
           onMouseDown={keepSelection}
           onClick={() => editor.chain().focus().toggleStrike().run()}
           type="button"
@@ -755,12 +750,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           <Strikethrough className="tiptap-button-icon size-4" strokeWidth={2} />
         </button>
         <button
-          aria-label="Code"
+          aria-label={t("bubble.code")}
           aria-pressed={formattingState.isCode}
           className={cn("tiptap-button", formattingState.isCode && "is-active")}
           data-active-state={formattingState.isCode ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Code"
+          data-tooltip={t("bubble.code")}
           onMouseDown={keepSelection}
           onClick={() => editor.chain().focus().toggleCode().run()}
           type="button"
@@ -774,12 +769,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
       <div className="tiptap-toolbar-group" role="group">
         <button
           ref={linkRef}
-          aria-label="Link"
+          aria-label={t("bubble.link")}
           aria-pressed={formattingState.isLink}
           className={cn("tiptap-button", formattingState.isLink && "is-active")}
           data-active-state={formattingState.isLink ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Link"
+          data-tooltip={t("bubble.link")}
           onMouseDown={keepSelection}
           onClick={handleLink}
           type="button"
@@ -788,7 +783,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
         </button>
         <button
           ref={colorRef}
-          aria-label="Text color"
+          aria-label={t("bubble.textColor")}
           aria-pressed={Boolean(formattingState.currentTextColor || formattingState.currentHighlightColor)}
           className={cn(
             "tiptap-button tiptap-button-color",
@@ -796,7 +791,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           )}
           data-active-state={formattingState.currentTextColor || formattingState.currentHighlightColor ? "on" : "off"}
           data-style="ghost"
-          data-tooltip="Text color"
+          data-tooltip={t("bubble.textColor")}
           onMouseDown={keepSelection}
           onClick={() => openFloatingMenu("color", colorRef.current)}
           type="button"
@@ -821,7 +816,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           ref={moreRef}
           className="tiptap-button"
           data-style="ghost"
-          data-tooltip="More options"
+          data-tooltip={t("bubble.moreOptions")}
           onMouseDown={keepSelection}
           onClick={() => openFloatingMenu("more", moreRef.current)}
           type="button"
@@ -846,7 +841,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
           >
             {openMenu === "turn-into" && (
               <>
-                <div className="text-bubble-menu-dropdown-label">Turn Into</div>
+                <div className="text-bubble-menu-dropdown-label">{t("bubble.turnIntoTitle")}</div>
                 {turnIntoItems.map((item) => (
                   <button
                     key={item.value}
@@ -869,12 +864,14 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
               <div className="text-bubble-color-palette">
                 {recentColors.length > 0 && (
                   <>
-                    <div className="text-bubble-menu-dropdown-label">Recently Used</div>
+                    <div className="text-bubble-menu-dropdown-label">{t("bubble.recentlyUsed")}</div>
                     <div className="text-bubble-color-grid is-recent">
                       {recentColors.map((color) => (
                         <button
                           key={`recent-${color.kind}-${color.value}`}
-                          aria-label={`${color.label} ${color.kind === "text" ? "text color" : "highlight color"}`}
+                          aria-label={t(color.kind === "text" ? "colors.textColor" : "colors.highlightColor", {
+                            color: t(color.labelKey),
+                          })}
                           className={cn(
                             color.kind === "text" ? "text-bubble-color-swatch" : "text-bubble-highlight-swatch",
                           )}
@@ -902,12 +899,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   </>
                 )}
 
-                <div className="text-bubble-menu-dropdown-label">Text Color</div>
+                <div className="text-bubble-menu-dropdown-label">{t("bubble.textColor")}</div>
                 <div className="text-bubble-color-grid">
                     {editorTextColors.map((color) => (
                     <button
                       key={`text-${color.label}`}
-                      aria-label={color.label}
+                      aria-label={t("colors.textColor", { color: t(color.labelKey) })}
                       className="text-bubble-color-swatch"
                       onMouseDown={keepSelection}
                       onClick={() => {
@@ -922,12 +919,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   ))}
                 </div>
 
-                <div className="text-bubble-menu-dropdown-label">Highlight Color</div>
+                <div className="text-bubble-menu-dropdown-label">{t("bubble.highlightColor")}</div>
                 <div className="text-bubble-color-grid">
                     {editorBackgroundColors.map((color) => (
                     <button
                       key={`highlight-${color.label}`}
-                      aria-label={color.label}
+                      aria-label={t("colors.highlightColor", { color: t(color.labelKey) })}
                       className="text-bubble-highlight-swatch"
                       onMouseDown={keepSelection}
                       onClick={() => {
@@ -947,16 +944,16 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
               <div className="text-bubble-link-popover">
                 <input
                   ref={linkInputRef}
-                  aria-label="Paste a link"
+                  aria-label={t("bubble.pasteLink")}
                   className="text-bubble-link-input"
                   onChange={(event) => setLinkUrl(event.target.value)}
                   onKeyDown={handleLinkInputKeyDown}
-                  placeholder="Paste a link..."
+                  placeholder={t("bubble.pasteLinkPlaceholder")}
                   type="url"
                   value={linkUrl}
                 />
                 <button
-                  aria-label="Apply link"
+                  aria-label={t("bubble.applyLink")}
                   className="text-bubble-link-action"
                   onMouseDown={keepSelection}
                   onClick={applyLink}
@@ -965,7 +962,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   <CornerDownLeft className="size-4" strokeWidth={1.8} />
                 </button>
                 <button
-                  aria-label="Open link"
+                  aria-label={t("bubble.openLink")}
                   className="text-bubble-link-action"
                   disabled={!linkUrl.trim() && !formattingState.isLink}
                   onMouseDown={keepSelection}
@@ -975,7 +972,7 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                   <ExternalLink className="size-4" strokeWidth={1.8} />
                 </button>
                 <button
-                  aria-label="Remove link"
+                  aria-label={t("bubble.removeLink")}
                   className="text-bubble-link-action"
                   disabled={!formattingState.isLink}
                   onMouseDown={keepSelection}
@@ -989,12 +986,12 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
 
             {openMenu === "more" && (
               <>
-                <div className="text-bubble-more-grid" role="group" aria-label="More text formatting">
+                <div className="text-bubble-more-grid" role="group" aria-label={t("bubble.moreTextFormatting")}>
                   <button
-                    aria-label="Superscript"
+                    aria-label={t("bubble.superscript")}
                     aria-pressed={formattingState.isSuperscript}
                     className={cn("text-bubble-more-button", formattingState.isSuperscript && "is-active")}
-                    data-tooltip="Superscript"
+                    data-tooltip={t("bubble.superscript")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().toggleSuperscript().run();
@@ -1005,10 +1002,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <Superscript className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Subscript"
+                    aria-label={t("bubble.subscript")}
                     aria-pressed={formattingState.isSubscript}
                     className={cn("text-bubble-more-button", formattingState.isSubscript && "is-active")}
-                    data-tooltip="Subscript"
+                    data-tooltip={t("bubble.subscript")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().toggleSubscript().run();
@@ -1019,10 +1016,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <Subscript className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Align left"
+                    aria-label={t("common.alignLeft")}
                     aria-pressed={formattingState.isTextAlignLeft}
                     className={cn("text-bubble-more-button", formattingState.isTextAlignLeft && "is-active")}
-                    data-tooltip="Align left"
+                    data-tooltip={t("common.alignLeft")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().setTextAlign("left").run();
@@ -1033,10 +1030,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <AlignLeft className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Align center"
+                    aria-label={t("common.alignCenter")}
                     aria-pressed={formattingState.isTextAlignCenter}
                     className={cn("text-bubble-more-button", formattingState.isTextAlignCenter && "is-active")}
-                    data-tooltip="Align center"
+                    data-tooltip={t("common.alignCenter")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().setTextAlign("center").run();
@@ -1047,10 +1044,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <AlignCenter className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Align right"
+                    aria-label={t("common.alignRight")}
                     aria-pressed={formattingState.isTextAlignRight}
                     className={cn("text-bubble-more-button", formattingState.isTextAlignRight && "is-active")}
-                    data-tooltip="Align right"
+                    data-tooltip={t("common.alignRight")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().setTextAlign("right").run();
@@ -1061,10 +1058,10 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <AlignRight className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Align justify"
+                    aria-label={t("common.alignJustify")}
                     aria-pressed={formattingState.isTextAlignJustify}
                     className={cn("text-bubble-more-button", formattingState.isTextAlignJustify && "is-active")}
-                    data-tooltip="Align justify"
+                    data-tooltip={t("common.alignJustify")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().setTextAlign("justify").run();
@@ -1075,9 +1072,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <AlignJustify className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Decrease indent"
+                    aria-label={t("bubble.decreaseIndent")}
                     className="text-bubble-more-button"
-                    data-tooltip="Decrease indent"
+                    data-tooltip={t("bubble.decreaseIndent")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().decreaseIndent().run();
@@ -1088,9 +1085,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <IndentDecrease className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Increase indent"
+                    aria-label={t("bubble.increaseIndent")}
                     className="text-bubble-more-button"
-                    data-tooltip="Increase indent"
+                    data-tooltip={t("bubble.increaseIndent")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().increaseIndent().run();
@@ -1101,9 +1098,9 @@ export function BubbleMenu({ editor }: EditorBubbleMenuProps) {
                     <IndentIncrease className="size-4" strokeWidth={1.8} />
                   </button>
                   <button
-                    aria-label="Clear formatting"
+                    aria-label={t("bubble.clearFormatting")}
                     className="text-bubble-more-button"
-                    data-tooltip="Clear formatting"
+                    data-tooltip={t("bubble.clearFormatting")}
                     onMouseDown={keepSelection}
                     onClick={() => {
                       editor.chain().focus().unsetAllMarks().clearNodes().run();

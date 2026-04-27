@@ -33,6 +33,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 
 import { editorBackgroundColors, editorTextColors } from "../../config/colors";
+import { useEditorI18n } from "../../lib/i18n";
 import "./table-controls.css";
 
 type TableControlsProps = {
@@ -244,6 +245,7 @@ const clearTableCellSelection = (editor: Editor) => {
 };
 
 export function TableControls({ container, editor }: TableControlsProps) {
+  const t = useEditorI18n();
   const hoveredLayoutRef = useRef<LayoutState | null>(null);
   const controlsHoveredRef = useRef(false);
   const hideTimeoutRef = useRef<number | null>(null);
@@ -484,15 +486,15 @@ export function TableControls({ container, editor }: TableControlsProps) {
   const renderColorSubmenu = (axis: "column" | "row") => (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>
-        <PaintBucket className="size-4" /> Color
+        <PaintBucket className="size-4" /> {t("common.color")}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
-        <div className="table-control-color-label">Text Color</div>
+        <div className="table-control-color-label">{t("common.textColor")}</div>
         <div className="table-control-color-grid">
           {editorTextColors.map((color) => (
             <button
               key={`${axis}-text-${color.label}`}
-              aria-label={`${color.label} text color`}
+              aria-label={t("colors.textColor", { color: t(color.labelKey) })}
               className="table-control-color-swatch"
               onClick={() => setAxisColor(axis, "textColor", color.value)}
               onMouseDown={keepSelection}
@@ -503,12 +505,12 @@ export function TableControls({ container, editor }: TableControlsProps) {
             </button>
           ))}
         </div>
-        <div className="table-control-color-label">Background Color</div>
+        <div className="table-control-color-label">{t("common.backgroundColor")}</div>
         <div className="table-control-color-grid">
           {editorBackgroundColors.map((color) => (
             <button
               key={`${axis}-background-${color.label}`}
-              aria-label={`${color.label} background color`}
+              aria-label={t("colors.backgroundColor", { color: t(color.labelKey) })}
               className="table-control-background-swatch"
               onClick={() => setAxisColor(axis, "backgroundColor", color.value)}
               onMouseDown={keepSelection}
@@ -581,51 +583,51 @@ export function TableControls({ container, editor }: TableControlsProps) {
                 className={cn(activeColumnIsHeader && "table-control-item-active")}
                 onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderColumn().run())}
               >
-                <Columns2 className="size-4" /> Header column
+                <Columns2 className="size-4" /> {t("table.headerColumn")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
           <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => moveColumn(-1)}>
-            <ArrowLeft className="size-4" /> Move column left
+            <ArrowLeft className="size-4" /> {t("table.moveColumnLeft")}
           </DropdownMenuItem>
           <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => moveColumn(1)}>
-            <ArrowRight className="size-4" /> Move column right
+            <ArrowRight className="size-4" /> {t("table.moveColumnRight")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={activeColumnIsHeader} onClick={() => withActiveCell(() => editor.chain().focus().addColumnBefore().run())}>
-            <Plus className="size-4" /> Insert column left
+            <Plus className="size-4" /> {t("table.insertColumnLeft")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addColumnAfter().run())}>
-            <Plus className="size-4" /> Insert column right
+            <Plus className="size-4" /> {t("table.insertColumnRight")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {renderColorSubmenu("column")}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <AlignLeft className="size-4" /> Alignment
+              <AlignLeft className="size-4" /> {t("common.alignment")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
               <DropdownMenuItem className={cn(activeAlign === "left" && "table-control-item-active")} onClick={() => setCellAlign("left")}>
-                <AlignLeft className="size-4" /> Left
+                <AlignLeft className="size-4" /> {t("common.left")}
               </DropdownMenuItem>
               <DropdownMenuItem className={cn(activeAlign === "center" && "table-control-item-active")} onClick={() => setCellAlign("center")}>
-                <AlignCenter className="size-4" /> Center
+                <AlignCenter className="size-4" /> {t("common.center")}
               </DropdownMenuItem>
               <DropdownMenuItem className={cn(activeAlign === "right" && "table-control-item-active")} onClick={() => setCellAlign("right")}>
-                <AlignRight className="size-4" /> Right
+                <AlignRight className="size-4" /> {t("common.right")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuItem onClick={() => clearAxisContents("column")}>
-            <Eraser className="size-4" /> Clear column contents
+            <Eraser className="size-4" /> {t("table.clearColumnContents")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
             onClick={() => withActiveCell(() => editor.chain().focus().deleteColumn().run())}
           >
-            <Trash2 className="size-4" /> Delete column
+            <Trash2 className="size-4" /> {t("table.deleteColumn")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -683,51 +685,51 @@ export function TableControls({ container, editor }: TableControlsProps) {
                 className={cn(activeRowIsHeader && "table-control-item-active")}
                 onClick={() => withActiveCell(() => editor.chain().focus().toggleHeaderRow().run())}
               >
-                <Rows2 className="size-4" /> Header row
+                <Rows2 className="size-4" /> {t("table.headerRow")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
           <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => moveRow(-1)}>
-            <ArrowUp className="size-4" /> Move row up
+            <ArrowUp className="size-4" /> {t("table.moveRowUp")}
           </DropdownMenuItem>
           <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => moveRow(1)}>
-            <ArrowDown className="size-4" /> Move row down
+            <ArrowDown className="size-4" /> {t("table.moveRowDown")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem disabled={activeRowIsHeader} onClick={() => withActiveCell(() => editor.chain().focus().addRowBefore().run())}>
-            <Plus className="size-4" /> Insert row above
+            <Plus className="size-4" /> {t("table.insertRowAbove")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => withActiveCell(() => editor.chain().focus().addRowAfter().run())}>
-            <Plus className="size-4" /> Insert row below
+            <Plus className="size-4" /> {t("table.insertRowBelow")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {renderColorSubmenu("row")}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <AlignLeft className="size-4" /> Alignment
+              <AlignLeft className="size-4" /> {t("common.alignment")}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
               <DropdownMenuItem className={cn(activeAlign === "left" && "table-control-item-active")} onClick={() => setCellAlign("left")}>
-                <AlignLeft className="size-4" /> Left
+                <AlignLeft className="size-4" /> {t("common.left")}
               </DropdownMenuItem>
               <DropdownMenuItem className={cn(activeAlign === "center" && "table-control-item-active")} onClick={() => setCellAlign("center")}>
-                <AlignCenter className="size-4" /> Center
+                <AlignCenter className="size-4" /> {t("common.center")}
               </DropdownMenuItem>
               <DropdownMenuItem className={cn(activeAlign === "right" && "table-control-item-active")} onClick={() => setCellAlign("right")}>
-                <AlignRight className="size-4" /> Right
+                <AlignRight className="size-4" /> {t("common.right")}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuItem onClick={() => clearAxisContents("row")}>
-            <Eraser className="size-4" /> Clear row contents
+            <Eraser className="size-4" /> {t("table.clearRowContents")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:bg-destructive/10 focus:text-destructive"
             onClick={() => withActiveCell(() => editor.chain().focus().deleteRow().run())}
           >
-            <Trash2 className="size-4" /> Delete row
+            <Trash2 className="size-4" /> {t("table.deleteRow")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

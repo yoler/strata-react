@@ -1,0 +1,193 @@
+{
+  "aria": {
+    "toolbar": "toolbar"
+  },
+  "blocks": {
+    "text": "Text",
+    "heading": "Heading",
+    "heading-1": "Heading 1",
+    "heading-2": "Heading 2",
+    "heading-3": "Heading 3",
+    "bullet-list": "Bullet list",
+    "numbered-list": "Numbered list",
+    "todo-list": "To-do list",
+    "quote": "Quote",
+    "code-block": "Code block",
+    "blockquote": "Blockquote",
+    "image": "Image",
+    "video": "Video",
+    "divider": "Separator",
+    "table": "Table"
+  },
+  "bubble": {
+    "applyLink": "Apply link",
+    "bold": "Bold",
+    "clearFormatting": "Clear formatting",
+    "code": "Code",
+    "decreaseIndent": "Decrease indent",
+    "highlightColor": "Highlight Color",
+    "increaseIndent": "Increase indent",
+    "italic": "Italic",
+    "link": "Link",
+    "moreOptions": "More options",
+    "moreTextFormatting": "More text formatting",
+    "openLink": "Open link",
+    "pasteLink": "Paste a link",
+    "pasteLinkPlaceholder": "Paste a link...",
+    "recentlyUsed": "Recently Used",
+    "removeLink": "Remove link",
+    "strike": "Strike",
+    "subscript": "Subscript",
+    "superscript": "Superscript",
+    "textColor": "Text Color",
+    "turnInto": "Turn into",
+    "turnIntoCurrent": "Turn into (current: {{current}})",
+    "turnIntoTitle": "Turn Into",
+    "underline": "Underline"
+  },
+  "colors": {
+    "default": "Default",
+    "gray": "Gray",
+    "brown": "Brown",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "green": "Green",
+    "blue": "Blue",
+    "purple": "Purple",
+    "pink": "Pink",
+    "red": "Red",
+    "textColor": "{{color}} text color",
+    "highlightColor": "{{color}} highlight color",
+    "backgroundColor": "{{color}} background color"
+  },
+  "common": {
+    "alignCenter": "Align center",
+    "alignJustify": "Align justify",
+    "alignLeft": "Align left",
+    "alignRight": "Align right",
+    "alignment": "Alignment",
+    "backgroundColor": "Background Color",
+    "center": "Center",
+    "color": "Color",
+    "delete": "Delete",
+    "insert": "Insert",
+    "left": "Left",
+    "right": "Right",
+    "textColor": "Text Color"
+  },
+  "dragHandle": {
+    "clearAllContents": "Clear all contents",
+    "clickForOptionsHoldForDrag": "Click for options. Hold for drag.",
+    "downloadImage": "Download image",
+    "duplicateNode": "Duplicate node",
+    "fitToWidth": "Fit to width",
+    "insertBlock": "Insert block",
+    "resetFormatting": "Reset formatting",
+    "turnInto": "Turn Into"
+  },
+  "emoji": {
+    "empty": "No matching emoji"
+  },
+  "image": {
+    "clickToUpload": "Click to upload",
+    "couldNotLoadUrl": "Couldn't load image from this URL.",
+    "dragAndDrop": " or drag and drop",
+    "fromUrl": "From URL",
+    "helper": "Maximum 3 files, 5MB each.",
+    "orUseUrl": "Or use an image URL",
+    "supportedTypes": "Only PNG, JPEG, GIF, and WebP images are supported.",
+    "uploading": "Uploading files...",
+    "uploadNotConfigured": "Image upload is not configured.",
+    "urlPlaceholder": "https://example.com/image.png",
+    "resetSize": "Reset size",
+    "validUrlRequired": "Please enter a valid image URL."
+  },
+  "slash": {
+    "empty": "No matching commands",
+    "filterPlaceholder": "Filter...",
+    "groups": {
+      "insert": "Insert",
+      "style": "Style"
+    },
+    "items": {
+      "text": {
+        "description": "Just start writing with plain text.",
+        "title": "Text"
+      },
+      "heading1": {
+        "description": "Big section heading.",
+        "title": "Heading 1"
+      },
+      "heading2": {
+        "description": "Medium section heading.",
+        "title": "Heading 2"
+      },
+      "heading3": {
+        "description": "Small section heading.",
+        "title": "Heading 3"
+      },
+      "bulletedList": {
+        "description": "Create a simple bulleted list.",
+        "title": "Bulleted list"
+      },
+      "numberedList": {
+        "description": "Create a list with numbering.",
+        "title": "Numbered list"
+      },
+      "todoList": {
+        "description": "Track tasks with a to-do list.",
+        "title": "To-do list"
+      },
+      "quote": {
+        "description": "Capture a quote.",
+        "title": "Quote"
+      },
+      "codeBlock": {
+        "description": "Capture a code snippet.",
+        "title": "Code block"
+      },
+      "emoji": {
+        "description": "Open the emoji picker.",
+        "title": "Emoji"
+      },
+      "image": {
+        "description": "Insert an image upload block.",
+        "title": "Image"
+      },
+      "video": {
+        "description": "Embed a video from a link.",
+        "title": "Video"
+      },
+      "table": {
+        "description": "Add simple tabular content.",
+        "title": "Table"
+      },
+      "divider": {
+        "description": "Visually divide blocks.",
+        "title": "Divider"
+      }
+    }
+  },
+  "table": {
+    "clearColumnContents": "Clear column contents",
+    "clearRowContents": "Clear row contents",
+    "deleteColumn": "Delete column",
+    "deleteRow": "Delete row",
+    "headerColumn": "Header column",
+    "headerRow": "Header row",
+    "insertColumnLeft": "Insert column left",
+    "insertColumnRight": "Insert column right",
+    "insertRowAbove": "Insert row above",
+    "insertRowBelow": "Insert row below",
+    "moveColumnLeft": "Move column left",
+    "moveColumnRight": "Move column right",
+    "moveRowDown": "Move row down",
+    "moveRowUp": "Move row up"
+  },
+  "video": {
+    "error": "Enter a YouTube, Bilibili, or direct video URL.",
+    "placeholder": "https://",
+    "prompt": "Paste a video URL to embed",
+    "supported": "Supports YouTube, Bilibili, and direct video files"
+  }
+}

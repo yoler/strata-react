@@ -5,6 +5,7 @@ import { AlignCenter, AlignLeft, AlignRight, Download, Maximize2, RotateCcw, Tra
 
 import { cn } from "@/shared/lib/utils";
 
+import { useEditorI18n } from "../../lib/i18n";
 import "./image-menu.css";
 
 type ImageMenuProps = {
@@ -34,6 +35,7 @@ const isVideoSelection = (editor: Editor) => {
 const isMediaSelection = (editor: Editor) => isImageSelection(editor) || isVideoSelection(editor);
 
 export function ImageMenu({ editor }: ImageMenuProps) {
+  const t = useEditorI18n();
   const { currentAlign, mediaType } = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
@@ -162,9 +164,9 @@ export function ImageMenu({ editor }: ImageMenuProps) {
       )}
     >
       <button
-        aria-label="Align left"
+        aria-label={t("common.alignLeft")}
         className={`image-bubble-menu-button ${currentAlign === "left" ? "is-active" : ""}`}
-        data-tooltip="Align left"
+        data-tooltip={t("common.alignLeft")}
         onMouseDown={keepSelection}
         onClick={() => setAlign("left")}
         type="button"
@@ -172,9 +174,9 @@ export function ImageMenu({ editor }: ImageMenuProps) {
         <AlignLeft className="size-4" strokeWidth={1.9} />
       </button>
       <button
-        aria-label="Align center"
+        aria-label={t("common.alignCenter")}
         className={`image-bubble-menu-button ${currentAlign === "center" ? "is-active" : ""}`}
-        data-tooltip="Align center"
+        data-tooltip={t("common.alignCenter")}
         onMouseDown={keepSelection}
         onClick={() => setAlign("center")}
         type="button"
@@ -182,9 +184,9 @@ export function ImageMenu({ editor }: ImageMenuProps) {
         <AlignCenter className="size-4" strokeWidth={1.9} />
       </button>
       <button
-        aria-label="Align right"
+        aria-label={t("common.alignRight")}
         className={`image-bubble-menu-button ${currentAlign === "right" ? "is-active" : ""}`}
-        data-tooltip="Align right"
+        data-tooltip={t("common.alignRight")}
         onMouseDown={keepSelection}
         onClick={() => setAlign("right")}
         type="button"
@@ -193,9 +195,9 @@ export function ImageMenu({ editor }: ImageMenuProps) {
       </button>
       <span className="image-bubble-menu-divider" />
       <button
-        aria-label="Fit to width"
+        aria-label={t("dragHandle.fitToWidth")}
         className="image-bubble-menu-button"
-        data-tooltip="Fit to width"
+        data-tooltip={t("dragHandle.fitToWidth")}
         onMouseDown={keepSelection}
         onClick={fitToWidth}
         type="button"
@@ -203,19 +205,19 @@ export function ImageMenu({ editor }: ImageMenuProps) {
         <Maximize2 className="size-4" strokeWidth={1.9} />
       </button>
       <button
-        aria-label="Reset size"
+        aria-label={t("image.resetSize")}
         className="image-bubble-menu-button"
-        data-tooltip="Reset size"
+        data-tooltip={t("image.resetSize")}
         onMouseDown={keepSelection}
         onClick={resetSize}
         type="button"
       >
         <RotateCcw className="size-4" strokeWidth={1.9} />
       </button>
-      <button aria-label="Download" className="image-bubble-menu-button" data-tooltip="Download" onMouseDown={keepSelection} onClick={handleDownload} type="button">
+      <button aria-label={t("dragHandle.downloadImage")} className="image-bubble-menu-button" data-tooltip={t("dragHandle.downloadImage")} onMouseDown={keepSelection} onClick={handleDownload} type="button">
         <Download className="size-4" strokeWidth={1.9} />
       </button>
-      <button aria-label="Delete" className="image-bubble-menu-button" data-tooltip="Delete" onMouseDown={keepSelection} onClick={handleDelete} type="button">
+      <button aria-label={t("common.delete")} className="image-bubble-menu-button" data-tooltip={t("common.delete")} onMouseDown={keepSelection} onClick={handleDelete} type="button">
         <Trash2 className="size-4" strokeWidth={1.9} />
       </button>
     </TiptapBubbleMenu>

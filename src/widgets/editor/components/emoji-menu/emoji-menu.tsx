@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
 import { Command, CommandEmpty, CommandItem, CommandList } from "@/shared/ui/command";
 
+import { useEditorI18n } from "../../lib/i18n";
 import "./emoji-menu.css";
 
 export type EmojiMenuHandle = {
@@ -17,6 +18,7 @@ type EmojiMenuProps = {
 };
 
 export const EmojiMenu = forwardRef<EmojiMenuHandle, EmojiMenuProps>(({ command, items }, ref) => {
+  const t = useEditorI18n();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const columns = 10;
 
@@ -95,7 +97,7 @@ export const EmojiMenu = forwardRef<EmojiMenuHandle, EmojiMenuProps>(({ command,
   if (!items.length) {
     return (
       <Command className="tiptap-emoji-card w-[280px] border bg-white dark:bg-neutral-950">
-        <CommandEmpty className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching emoji</CommandEmpty>
+        <CommandEmpty className="text-muted-foreground px-3 py-3 text-[13px] leading-5">{t("emoji.empty")}</CommandEmpty>
       </Command>
     );
   }

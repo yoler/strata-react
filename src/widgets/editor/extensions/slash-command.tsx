@@ -7,6 +7,7 @@ import type { ComponentProps } from "react";
 
 import { SlashCommandMenu, type SlashCommandItem, type SlashCommandMenuHandle } from "../components/slash-command-menu/slash-command-menu";
 import { DEFAULT_CODE_BLOCK_LANGUAGE } from "../lib/code-block";
+import { editorT } from "../lib/i18n";
 import { createSuggestionPopupRenderer } from "../lib/suggestion-popup";
 
 const slashCommandPluginKey = new PluginKey("slash-command-suggestion");
@@ -55,118 +56,118 @@ function getSuggestionItems({
   const normalizedQuery = query.toLowerCase();
   const items: SlashCommandItem[] = [
     {
-      title: "Text",
-      description: "Just start writing with plain text.",
+      title: editorT("slash.items.text.title"),
+      description: editorT("slash.items.text.description"),
       icon: Type,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("paragraph").run();
       },
     },
     {
-      title: "Heading 1",
-      description: "Big section heading.",
+      title: editorT("slash.items.heading1.title"),
+      description: editorT("slash.items.heading1.description"),
       icon: Heading1,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
       },
     },
     {
-      title: "Heading 2",
-      description: "Medium section heading.",
+      title: editorT("slash.items.heading2.title"),
+      description: editorT("slash.items.heading2.description"),
       icon: Heading2,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
       },
     },
     {
-      title: "Heading 3",
-      description: "Small section heading.",
+      title: editorT("slash.items.heading3.title"),
+      description: editorT("slash.items.heading3.description"),
       icon: Heading3,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
       },
     },
     {
-      title: "Bulleted list",
-      description: "Create a simple bulleted list.",
+      title: editorT("slash.items.bulletedList.title"),
+      description: editorT("slash.items.bulletedList.description"),
       icon: List,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBulletList().run();
       },
     },
     {
-      title: "Numbered list",
-      description: "Create a list with numbering.",
+      title: editorT("slash.items.numberedList.title"),
+      description: editorT("slash.items.numberedList.description"),
       icon: ListOrdered,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleOrderedList().run();
       },
     },
     {
-      title: "To-do list",
-      description: "Track tasks with a to-do list.",
+      title: editorT("slash.items.todoList.title"),
+      description: editorT("slash.items.todoList.description"),
       icon: ListTodo,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleTaskList().run();
       },
     },
     {
-      title: "Quote",
-      description: "Capture a quote.",
+      title: editorT("slash.items.quote.title"),
+      description: editorT("slash.items.quote.description"),
       icon: Quote,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).toggleBlockquote().run();
       },
     },
     {
-      title: "Code block",
-      description: "Capture a code snippet.",
+      title: editorT("slash.items.codeBlock.title"),
+      description: editorT("slash.items.codeBlock.description"),
       icon: CodeSquare,
-      group: "Style",
+      group: "style",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setNode("codeBlock", { language: DEFAULT_CODE_BLOCK_LANGUAGE }).run();
       },
     },
     {
-      title: "Emoji",
-      description: "Open the emoji picker.",
+      title: editorT("slash.items.emoji.title"),
+      description: editorT("slash.items.emoji.description"),
       icon: Smile,
-      group: "Insert",
+      group: "insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).insertContent(":").run();
       },
     },
     {
-      title: "Image",
-      description: "Insert an image upload block.",
+      title: editorT("slash.items.image.title"),
+      description: editorT("slash.items.image.description"),
       icon: ImageIcon,
-      group: "Insert",
+      group: "insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setImageUploadNode().run();
       },
     },
     {
-      title: "Video",
-      description: "Embed a video from a link.",
+      title: editorT("slash.items.video.title"),
+      description: editorT("slash.items.video.description"),
       icon: Video,
-      group: "Insert",
+      group: "insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setVideoEmbedInput().run();
       },
     },
     {
-      title: "Table",
-      description: "Add simple tabular content.",
+      title: editorT("slash.items.table.title"),
+      description: editorT("slash.items.table.description"),
       icon: TableIcon,
-      group: "Insert",
+      group: "insert",
       command: ({ editor, range }) => {
         const rows = 3;
         const cols = 3;
@@ -181,10 +182,10 @@ function getSuggestionItems({
       },
     },
     {
-      title: "Divider",
-      description: "Visually divide blocks.",
+      title: editorT("slash.items.divider.title"),
+      description: editorT("slash.items.divider.description"),
       icon: Minus,
-      group: "Insert",
+      group: "insert",
       command: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).setHorizontalRule().run();
       },
@@ -195,7 +196,7 @@ function getSuggestionItems({
     return (
       item.title.toLowerCase().includes(normalizedQuery) ||
       item.description.toLowerCase().includes(normalizedQuery) ||
-      item.group.toLowerCase().includes(normalizedQuery)
+      editorT(`slash.groups.${item.group}`).toLowerCase().includes(normalizedQuery)
     );
   });
 }
@@ -244,7 +245,7 @@ export const SlashCommand = Extension.create({
         items: ({ query }) => getSuggestionItems({ query }),
         render: renderItems,
         decorationClass: "tiptap-slash-decoration is-empty",
-        decorationContent: "Filter...",
+        decorationContent: editorT("slash.filterPlaceholder"),
       }),
     ];
   },

@@ -1,6 +1,7 @@
 import type { NodeViewProps } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useEditorI18n } from "../../lib/i18n";
 import { consumePendingImageUploadBatch } from "../../lib/image-upload-batches";
 import {
   deriveUrlLabel,
@@ -32,6 +33,7 @@ export function useImageUploadRows({
   limit,
   maxSize,
 }: UseImageUploadRowsOptions) {
+  const t = useEditorI18n();
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const [rows, setRows] = useState<UploadRow[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function useImageUploadRows({
   const startUploads = useCallback(
     async (files: File[]) => {
       if (!upload) {
-        setErrorMessage("Image upload is not configured.");
+        setErrorMessage(t("image.uploadNotConfigured"));
         return;
       }
 
@@ -90,7 +92,7 @@ export function useImageUploadRows({
         setRows([]);
       }
     },
-    [editor, getPos, node, updateRow, upload],
+    [editor, getPos, node, t, updateRow, upload],
   );
 
   const handleFiles = useCallback(
@@ -102,13 +104,15 @@ export function useImageUploadRows({
       });
 
       if (nextErrorMessage) {
-        setErrorMessage(nextErrorMessage);
+        setErrorMessage(
+          nextErrorMessage.includes("Only PNG") ? t("image.supportedTypes") : t("image.helper"),
+        );
         return;
       }
 
       await startUploads(files);
     },
-    [limit, maxSize, startUploads],
+    [limit, maxSize, startUploads, t],
   );
 
   const cancelUpload = useCallback((rowId: string) => {
@@ -121,7 +125,7 @@ export function useImageUploadRows({
     const trimmedUrl = remoteUrl.trim();
 
     if (!isLikelyImageUrl(trimmedUrl)) {
-      setErrorMessage("Please enter a valid image URL.");
+      setErrorMessage(t("image.validUrlRequired"));
       return;
     }
 
@@ -137,7 +141,7 @@ export function useImageUploadRows({
         progress,
         status: "uploading",
         name: deriveUrlLabel(trimmedUrl),
-        meta: "From URL",
+        meta: t("image.fromUrl"),
         source: "url",
       },
     ]);
@@ -176,17 +180,17 @@ export function useImageUploadRows({
         updateRow(rowId, (currentRow) => ({
           ...currentRow,
           status: "error",
-          errorMessage: "Couldn't load image from this URL.",
+          errorMessage: t("image.couldNotLoadUrl"),
           progress: 0,
         }));
-        setErrorMessage("Couldn't load image from this URL.");
+        setErrorMessage(t("image.couldNotLoadUrl"));
         finalize();
         resolve();
       };
 
       image.src = trimmedUrl;
     });
-  }, [editor, getPos, node, remoteUrl, updateRow]);
+  }, [editor, getPos, node, remoteUrl, t, updateRow]);
 
   useEffect(() => {
     if (!uploadBatchId || rows.length) {
@@ -204,7 +208,7 @@ export function useImageUploadRows({
     });
   }, [handleFiles, rows.length, uploadBatchId]);
 
-  const helperText = isUploading ? "Uploading files..." : (errorMessage ?? "Maximum 3 files, 5MB each.");
+  const helperText = isUploading ? t("image.uploading") : (errorMessage ?? t("image.helper"));
 
   return {
     cancelUpload,

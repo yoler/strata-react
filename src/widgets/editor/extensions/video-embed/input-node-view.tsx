@@ -2,11 +2,13 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { Link2, Video } from "lucide-react";
 import { useState } from "react";
 
+import { useEditorI18n } from "../../lib/i18n";
 import { resolveVideoUrl } from "../../lib/video";
 import { replaceVideoInputWithEmbed } from "../../lib/video-node";
 import "./video-embed-input.css";
 
 export function VideoEmbedInputNodeView({ editor, getPos }: NodeViewProps) {
+  const t = useEditorI18n();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +16,7 @@ export function VideoEmbedInputNodeView({ editor, getPos }: NodeViewProps) {
     const resolved = resolveVideoUrl(url);
 
     if (!resolved) {
-      setError("Enter a YouTube, Bilibili, or direct video URL.");
+      setError(t("video.error"));
       return;
     }
 
@@ -37,8 +39,8 @@ export function VideoEmbedInputNodeView({ editor, getPos }: NodeViewProps) {
             </div>
           </div>
         </div>
-        <div className="video-embed-input-copy">Paste a video URL to embed</div>
-        <div className="video-embed-input-supported">Supports YouTube, Bilibili, and direct video files</div>
+        <div className="video-embed-input-copy">{t("video.prompt")}</div>
+        <div className="video-embed-input-supported">{t("video.supported")}</div>
         <div className="video-embed-input-row">
           <input
             className="video-embed-input-field"
@@ -49,12 +51,12 @@ export function VideoEmbedInputNodeView({ editor, getPos }: NodeViewProps) {
                 submit();
               }
             }}
-            placeholder="https://"
+            placeholder={t("video.placeholder")}
             type="url"
             value={url}
           />
           <button className="video-embed-input-button" onClick={submit} type="button">
-            Insert
+            {t("common.insert")}
           </button>
         </div>
         {error ? <div className="video-embed-input-error">{error}</div> : null}

@@ -17,8 +17,9 @@ import {
 } from "@/shared/ui/dropdown-menu";
 
 import { editorBackgroundColors, editorTextColors } from "../../config/colors";
-import { getMenuNodeKind, MENU_TITLE_BY_KIND, type MenuNodeKind } from "../../config/node-menu";
+import { getMenuNodeKind, MENU_TITLE_KEY_BY_KIND, type MenuNodeKind } from "../../config/node-menu";
 import { TURN_INTO_OPTIONS } from "../../config/turn-into";
+import { useEditorI18n } from "../../lib/i18n";
 import { isContainerBlockKind, replaceContainerBlock, type TurnIntoValue } from "../../lib/turn-into";
 import "./drag-handle.css";
 
@@ -70,6 +71,7 @@ const resolveMenuTarget = (
 };
 
 export function DragHandle({ editor }: { editor: Editor }) {
+  const t = useEditorI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<OpenSubMenu>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -634,7 +636,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
     currentTarget && "blockBackgroundColor" in currentTarget.node.attrs
       ? ((currentTarget.node.attrs.blockBackgroundColor as string | null | undefined) ?? "")
       : "";
-  const menuTitle = currentTarget ? MENU_TITLE_BY_KIND[currentTarget.kind] : MENU_TITLE_BY_KIND.text;
+  const menuTitle = t(currentTarget ? MENU_TITLE_KEY_BY_KIND[currentTarget.kind] : MENU_TITLE_KEY_BY_KIND.text);
   const canColor =
     currentTarget?.kind === "text" ||
     currentTarget?.kind === "heading" ||
@@ -685,7 +687,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
         >
           <button
             type="button"
-            title="Insert block"
+            title={t("dragHandle.insertBlock")}
             onMouseDown={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -699,7 +701,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
           <div className="relative ml-px flex h-8 w-6 items-center justify-center">
             <button
               type="button"
-              title="Click for options. Hold for drag."
+              title={t("dragHandle.clickForOptionsHoldForDrag")}
               onPointerDown={handleGripPointerDown}
               className="drag-handle-action drag-handle-grip flex h-8 w-6 cursor-grab items-center justify-center rounded-full active:cursor-grabbing"
             >
@@ -725,21 +727,21 @@ export function DragHandle({ editor }: { editor: Editor }) {
               >
                 {isTableMenu ? (
                   <>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Table</div>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{t("blocks.table")}</div>
                     <DropdownMenuSub open={openSubMenu === "table-color"} onOpenChange={(open) => setOpenSubMenu(open ? "table-color" : null)}>
                       <DropdownMenuSubTrigger
                         onFocus={() => setOpenSubMenu("table-color")}
                         onPointerMove={() => setOpenSubMenu("table-color")}
                       >
-                        <PaintBucket className="size-4" /> Color
+                        <PaintBucket className="size-4" /> {t("common.color")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
-                        <div className="table-control-color-label">Text Color</div>
+                        <div className="table-control-color-label">{t("common.textColor")}</div>
                         <div className="table-control-color-grid">
                     {editorTextColors.map((color) => (
                           <button
                             key={`table-text-${color.label}`}
-                            aria-label={`${color.label} text color`}
+                            aria-label={t("colors.textColor", { color: t(color.labelKey) })}
                             className={`table-control-color-swatch ${tableTextColor === color.value ? "is-active" : ""}`}
                             onClick={() => setTableColor("textColor", color.value)}
                             onMouseDown={(event) => event.preventDefault()}
@@ -750,12 +752,12 @@ export function DragHandle({ editor }: { editor: Editor }) {
                           </button>
                         ))}
                       </div>
-                      <div className="table-control-color-label">Background Color</div>
+                      <div className="table-control-color-label">{t("common.backgroundColor")}</div>
                       <div className="table-control-color-grid">
                     {editorBackgroundColors.map((color) => (
                           <button
                             key={`table-background-${color.label}`}
-                            aria-label={`${color.label} background color`}
+                            aria-label={t("colors.backgroundColor", { color: t(color.labelKey) })}
                             className={`table-control-background-swatch ${tableBackgroundColor === color.value ? "is-active" : ""}`}
                             onClick={() => setTableColor("backgroundColor", color.value)}
                             onMouseDown={(event) => event.preventDefault()}
@@ -773,33 +775,33 @@ export function DragHandle({ editor }: { editor: Editor }) {
                       onFocus={() => setOpenSubMenu("table-alignment")}
                       onPointerMove={() => setOpenSubMenu("table-alignment")}
                     >
-                      <AlignLeft className="size-4" /> Alignment
+                      <AlignLeft className="size-4" /> {t("common.alignment")}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="table-control-menu table-control-submenu w-44" collisionPadding={16}>
                       <DropdownMenuItem className={tableTextAlign === "left" ? "table-control-item-active" : ""} onClick={() => setTableAlign("left")}>
-                        <AlignLeft className="size-4" /> Left
+                        <AlignLeft className="size-4" /> {t("common.left")}
                       </DropdownMenuItem>
                       <DropdownMenuItem className={tableTextAlign === "center" ? "table-control-item-active" : ""} onClick={() => setTableAlign("center")}>
-                        <AlignCenter className="size-4" /> Center
+                        <AlignCenter className="size-4" /> {t("common.center")}
                       </DropdownMenuItem>
                       <DropdownMenuItem className={tableTextAlign === "right" ? "table-control-item-active" : ""} onClick={() => setTableAlign("right")}>
-                        <AlignRight className="size-4" /> Right
+                        <AlignRight className="size-4" /> {t("common.right")}
                       </DropdownMenuItem>
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
 
                   <DropdownMenuItem onClick={fitTableToWidth}>
-                    <Maximize2 className="size-4" /> Fit to width
+                    <Maximize2 className="size-4" /> {t("dragHandle.fitToWidth")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={clearTableContents}>
-                    <Eraser className="size-4" /> Clear all contents
+                    <Eraser className="size-4" /> {t("dragHandle.clearAllContents")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     onClick={deleteNode}
                   >
-                    <Trash2 className="size-4" /> Delete
+                    <Trash2 className="size-4" /> {t("common.delete")}
                   </DropdownMenuItem>
                 </>
               ) : (
@@ -812,15 +814,15 @@ export function DragHandle({ editor }: { editor: Editor }) {
                         onFocus={() => setOpenSubMenu("block-color")}
                         onPointerMove={() => setOpenSubMenu("block-color")}
                       >
-                        <PaintBucket className="size-4" /> Color
+                        <PaintBucket className="size-4" /> {t("common.color")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu table-control-color-menu" collisionPadding={16}>
-                        <div className="table-control-color-label">Text Color</div>
+                        <div className="table-control-color-label">{t("common.textColor")}</div>
                         <div className="table-control-color-grid">
                           {editorTextColors.map((color) => (
                             <button
                               key={`block-text-${color.label}`}
-                              aria-label={`${color.label} text color`}
+                              aria-label={t("colors.textColor", { color: t(color.labelKey) })}
                               className="table-control-color-swatch"
                               onClick={() => setBlockTextColor(color.value || undefined)}
                               onMouseDown={(event) => event.preventDefault()}
@@ -831,12 +833,12 @@ export function DragHandle({ editor }: { editor: Editor }) {
                             </button>
                           ))}
                         </div>
-                        <div className="table-control-color-label">Background Color</div>
+                        <div className="table-control-color-label">{t("common.backgroundColor")}</div>
                         <div className="table-control-color-grid">
                           {editorBackgroundColors.map((color) => (
                             <button
                               key={`block-highlight-${color.label}`}
-                              aria-label={`${color.label} highlight color`}
+                              aria-label={t("colors.highlightColor", { color: t(color.labelKey) })}
                               className={`table-control-background-swatch ${blockBackgroundColor === color.value ? "is-active" : ""}`}
                               onClick={() => setBlockHighlightColor(color.value || undefined)}
                               onMouseDown={(event) => event.preventDefault()}
@@ -856,7 +858,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                         onFocus={() => setOpenSubMenu("block-turn-into")}
                         onPointerMove={() => setOpenSubMenu("block-turn-into")}
                       >
-                        <Repeat className="size-4" /> Turn Into
+                        <Repeat className="size-4" /> {t("dragHandle.turnInto")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="table-control-menu w-48" collisionPadding={16}>
                         {TURN_INTO_OPTIONS.map((item) => {
@@ -864,7 +866,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
 
                           return (
                             <DropdownMenuItem key={item.value} onClick={() => turnInto(item.value)}>
-                              <Icon className="size-4" /> {item.label}
+                              <Icon className="size-4" /> {t(item.labelKey)}
                             </DropdownMenuItem>
                           );
                         })}
@@ -874,7 +876,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
 
                   {canReset && (
                     <DropdownMenuItem onClick={resetFormatting}>
-                      <RotateCcw className="size-4" /> Reset formatting
+                      <RotateCcw className="size-4" /> {t("dragHandle.resetFormatting")}
                     </DropdownMenuItem>
                   )}
 
@@ -882,13 +884,13 @@ export function DragHandle({ editor }: { editor: Editor }) {
 
                   {canDownloadImage && (
                     <DropdownMenuItem onClick={downloadImage}>
-                      <Download className="size-4" /> Download image
+                      <Download className="size-4" /> {t("dragHandle.downloadImage")}
                     </DropdownMenuItem>
                   )}
 
                   {canDuplicate && (
                     <DropdownMenuItem onClick={duplicateNode}>
-                      <Copy className="size-4" /> Duplicate node
+                      <Copy className="size-4" /> {t("dragHandle.duplicateNode")}
                     </DropdownMenuItem>
                   )}
 
@@ -898,7 +900,7 @@ export function DragHandle({ editor }: { editor: Editor }) {
                     className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                     onClick={deleteNode}
                   >
-                    <Trash2 className="size-4" /> Delete
+                    <Trash2 className="size-4" /> {t("common.delete")}
                   </DropdownMenuItem>
                 </>
               )}

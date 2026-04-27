@@ -2,13 +2,16 @@ import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import type { LucideIcon } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 
+import { useEditorI18n } from "../../lib/i18n";
 import "./slash-command-menu.css";
+
+export type SlashCommandGroup = "insert" | "style";
 
 export type SlashCommandItem = {
   title: string;
   description: string;
   icon: LucideIcon;
-  group: string;
+  group: SlashCommandGroup;
   command: (props: { editor: import("@tiptap/core").Editor; range: import("@tiptap/core").Range }) => void;
 };
 
@@ -22,9 +25,10 @@ type SlashCommandMenuProps = {
   items: SlashCommandItem[];
 };
 
-const groupOrder = ["Style", "Insert"] as const;
+const groupOrder: SlashCommandGroup[] = ["style", "insert"];
 
 export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandMenuProps>(({ command, items }, ref) => {
+  const t = useEditorI18n();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectItem = useCallback((index: number) => {
@@ -70,19 +74,19 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
   if (!items.length) {
     return (
       <div className="tiptap-slash-card w-[248px] border bg-white dark:bg-neutral-950">
-        <div className="text-muted-foreground px-3 py-3 text-[13px] leading-5">No matching commands</div>
+        <div className="text-muted-foreground px-3 py-3 text-[13px] leading-5">{t("slash.empty")}</div>
       </div>
     );
   }
 
-  const groupedItems = items.reduce<Record<string, Array<SlashCommandItem & { index: number }>>>((accumulator, item, index) => {
+  const groupedItems = items.reduce<Record<SlashCommandGroup, Array<SlashCommandItem & { index: number }>>>((accumulator, item, index) => {
     if (!accumulator[item.group]) {
       accumulator[item.group] = [];
     }
 
     accumulator[item.group].push({ ...item, index });
     return accumulator;
-  }, {});
+  }, { insert: [], style: [] });
 
   const orderedGroups = groupOrder
     .map((group) => [group, groupedItems[group] ?? []] as const)
@@ -93,7 +97,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuHandle, SlashCommandM
       <div className="tiptap-slash-card-body max-h-[340px] p-0">
         {orderedGroups.map(([group, groupItems]) => (
           <div key={group} className="tiptap-slash-card-group">
-            <div className="tiptap-slash-card-group-heading">{group}</div>
+            <div className="tiptap-slash-card-group-heading">{t(`slash.groups.${group}`)}</div>
             {groupItems.map((item) => {
               const Icon = item.icon;
 

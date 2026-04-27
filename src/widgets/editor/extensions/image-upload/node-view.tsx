@@ -4,11 +4,13 @@ import { FileImage, ImageUp, X } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { useImageUploadRows } from "./use-image-upload-rows";
+import { useEditorI18n } from "../../lib/i18n";
 import { resolveNodeViewPosition } from "../../lib/image-upload-node";
 import { formatFileSize } from "../../lib/image-upload-service";
 import "./image-upload.css";
 
 export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeViewProps) {
+  const t = useEditorI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -147,13 +149,13 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
                 }}
                 type="button"
               >
-                Click to upload
+                {t("image.clickToUpload")}
               </button>
-              <span className="image-upload-copy-separator"> or drag and drop</span>
+              <span className="image-upload-copy-separator">{t("image.dragAndDrop")}</span>
             </div>
             <div className="image-upload-url-section" onClick={(event) => event.stopPropagation()}>
               <div className="image-upload-url-divider">
-                <span>Or use an image URL</span>
+                <span>{t("image.orUseUrl")}</span>
               </div>
               <div className="image-upload-url-row">
                 <input
@@ -165,7 +167,7 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
                       void submitRemoteUrl();
                     }
                   }}
-                  placeholder="https://example.com/image.png"
+                  placeholder={t("image.urlPlaceholder")}
                   type="url"
                   value={remoteUrl}
                 />
@@ -178,7 +180,7 @@ export function ImageUploadNodeView({ editor, getPos, node, extension }: NodeVie
                   }}
                   type="button"
                 >
-                  Insert
+                  {t("common.insert")}
                 </button>
               </div>
             </div>
