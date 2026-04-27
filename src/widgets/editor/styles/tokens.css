@@ -52,13 +52,14 @@
   --tt-inline-code-bg-color: rgba(15, 23, 42, 0.06);
   --tt-inline-code-text-color: rgba(36, 39, 46, 0.82);
   --tt-inline-code-border-color: rgba(15, 23, 42, 0.1);
-  --horizontal-rule-color: rgba(15, 23, 42, 0.1);
+  --horizontal-rule-color: var(--border);
   --tt-indent-unit: 24px;
 }
 
 .dark .tiptap.ProseMirror {
   --tt-selection-color: rgba(129, 140, 248, 0.28);
   --blockquote-bg-color: rgba(129, 140, 248, 0.72);
+  --horizontal-rule-color: var(--border);
   --tt-highlight-gray: rgba(255, 255, 255, 0.12);
   --tt-highlight-brown: rgba(120, 83, 57, 0.7);
   --tt-highlight-orange: rgba(146, 86, 34, 0.62);

@@ -317,11 +317,12 @@
 }
 
 .tiptap.ProseMirror hr {
-  background-color: var(--horizontal-rule-color);
-  border: none;
+  background-color: var(--horizontal-rule-color) !important;
+  border: 0 !important;
+  border-top: 0 !important;
   width: 100%;
   flex: 1 1 auto;
-  height: 1px;
+  height: 1px !important;
   margin: 0;
   display: block;
 }
